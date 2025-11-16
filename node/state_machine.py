@@ -14,8 +14,8 @@ class StateMachine:
         self.linear_speed = 4 
         self.kp = 0.07
 
-        self.pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
-        self.sub = rospy.Subscriber("/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
+        self.pub = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
+        self.sub = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
 
     ## Receives image data through ROS, analyzes the location of the track in the image using OpenCV, 
     #  and sends appropriate valeu for yaw to the robot to realign itself with the track.
@@ -58,5 +58,5 @@ def main():
     sm = StateMachine()
     rospy.spin()
 
-if __name__ == "main":
+if __name__ == "__main__":
     main()
