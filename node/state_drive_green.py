@@ -17,7 +17,11 @@ class Drive_GreenState:
 
     def run(self):
         img = self.state_machine.image_data
+        #self.state_machine.pub_time.publish(start_timer)
         self.drive(img)
+
+        rospy.sleep(5)
+        #self.state_machine.pub_time.publish(end_timer)
 
         return "Drive_Green"
 
@@ -53,4 +57,4 @@ class Drive_GreenState:
             move.linear.x  = 1.0
             move.angular.z = 0.5
 
-        self.state_machine.pub.publish(move)
+        self.state_machine.pub_vel.publish(move)

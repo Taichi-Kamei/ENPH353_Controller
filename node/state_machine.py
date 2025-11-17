@@ -8,6 +8,7 @@ from state_pedestrian import Pedestrian
 from state_truck import Truck
 
 from sensor_msgs.msg import Image, LaserScan, Imu
+from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -15,14 +16,25 @@ from cv_bridge import CvBridge, CvBridgeError
 class StateMachine:
     def __init__(self):
         self.bridge = CvBridge()
+        self.move = Twist()
         self.image_data = None
         self.lidar_data = None
-        self.move = Twist()
-        rospy.loginfo("what")
+        
+        
+        self.red_count = 0
+        self.pink_count = 0
+        self.clue_board = 0
 
-        self.pub = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
-        self.sub = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
+        self.board_detected = False
+        self.green_road = True
+        self.dirt_road = False
+        self.off_road = False
+
+        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1)
+        self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
+        self.sub_cam = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
         #self.sub = rospy.Subscriber("/scan", LaserScan, self.lidar_cb)
+
 
         self.states = {
            "Drive_Green": Drive_GreenState(self),
@@ -42,12 +54,15 @@ class StateMachine:
             self.image_data = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
             print(e)
-
+ 
     #def lidar_cb(self, data):
         #self.lidar_data = data
 
     def run(self):
         rate = rospy.Rate(20)
+
+        #self.pub_time.publish(start_timer)
+
         while not rospy.is_shutdown():
 
             self.next_state = self.states[self.current_state.run()]
