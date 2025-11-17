@@ -4,7 +4,7 @@ class Pedestrian:
 
 
     def enter(self):
-        rospy.loginfo("Entering Pedestrian state")
+        self.state_machine.rospy.loginfo("Entering Pedestrian state")
 
 
     def run(self):
@@ -12,4 +12,4 @@ class Pedestrian:
 
 
     def exit(self):
-        rospy.loginfo("Exiting Pedestrian State")
+        self.state_machine.rospy.loginfo("Exiting Pedestrian State")
