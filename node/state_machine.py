@@ -33,7 +33,7 @@ class StateMachine:
         self.off_road = False
 
 
-        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1)
+        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
         self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
         self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
         self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
