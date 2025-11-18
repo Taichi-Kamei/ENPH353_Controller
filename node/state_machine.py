@@ -6,10 +6,12 @@ import cv2
 from state_drive_green import Drive_GreenState
 from state_pedestrian import Pedestrian
 from state_truck import Truck
+from state_idle import Idle
 
-from sensor_msgs.msg import Image, LaserScan, Imu
+from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
+from rosgraph_msgs.msg import Clock
 from cv_bridge import CvBridge, CvBridgeError
 
 
@@ -30,16 +32,22 @@ class StateMachine:
         self.dirt_road = False
         self.off_road = False
 
+
         self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1)
         self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
+        self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
+        self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
         self.sub_cam = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
+        
+
         #self.sub = rospy.Subscriber("/scan", LaserScan, self.lidar_cb)
 
 
         self.states = {
            "Drive_Green": Drive_GreenState(self),
            "Pedestrian": Pedestrian(self),
-           "Truck": Truck(self)
+           "Truck": Truck(self),
+           "Idle": Idle(self)
         }
 
         self.current_state = self.states["Drive_Green"]
@@ -58,10 +66,14 @@ class StateMachine:
     #def lidar_cb(self, data):
         #self.lidar_data = data
 
+    def clock_cb(self, data):
+            self.timer = data
+
     def run(self):
         rate = rospy.Rate(20)
 
-        #self.pub_time.publish(start_timer)
+        rospy.wait_for_message("/clock", Clock)
+        self.pub_time.publish("Team14,password,0,START")
 
         while not rospy.is_shutdown():
 

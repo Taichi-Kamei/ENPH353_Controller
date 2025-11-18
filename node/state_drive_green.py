@@ -1,14 +1,15 @@
 import cv2
 import rospy
 
+
 class Drive_GreenState:
 
     def __init__(self, state_machine):
         self.state_machine = state_machine
 
         self.threshold = 161
-        self.linear_speed = 4 
-        self.kp = 0.07
+        self.linear_speed = 2
+        self.kp = 0.03
 
 
     def enter(self):
@@ -17,10 +18,12 @@ class Drive_GreenState:
 
     def run(self):
         img = self.state_machine.image_data
-        #self.state_machine.pub_time.publish(start_timer)
-        self.drive(img)
 
-        rospy.sleep(5)
+        if self.detect_red(img) and self.state_machine.red_count == 0:
+                self.state_machine.red_count += 1
+                return "Pedestrian"
+        
+        self.drive(img)
         #self.state_machine.pub_time.publish(end_timer)
 
         return "Drive_Green"
@@ -41,10 +44,12 @@ class Drive_GreenState:
         img_cropped = img[220:frame_height-10, 0:frame_width]
         img_gray = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2GRAY)
         _, img_bin = cv2.threshold(img_gray, self.threshold, 255, cv2.THRESH_BINARY)
-        img_inv = cv2.bitwise_not(img_bin)
 
-        M = cv2.moments(img_inv)
+        M = cv2.moments(img_bin)
         move = self.state_machine.move
+
+        ros_img = self.state_machine.bridge.cv2_to_imgmsg(img_bin, encoding="mono8")
+        self.state_machine.pub_processed_cam.publish(ros_img)
 
         if M["m00"] > 0:
             cx = int(M["m10"] / M["m00"])
@@ -58,3 +63,10 @@ class Drive_GreenState:
             move.angular.z = 0.5
 
         self.state_machine.pub_vel.publish(move)
+
+    
+    def detect_red(self, img):
+        
+        #ToDo
+
+        return False
