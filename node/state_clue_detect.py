@@ -11,9 +11,11 @@ class Clue_DetectState:
 
     def run(self):
         
-        
+
         pass
 
 
     def exit(self):
+        self.state_machine.board_detected = False
         rospy.loginfo("Exiting Pedestrian State")
+        

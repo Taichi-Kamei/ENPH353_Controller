@@ -24,7 +24,7 @@ class Drive_GreenState:
                 return "Pedestrian"
         
         self.drive(img)
-        #self.state_machine.pub_time.publish(end_timer)
+        
 
         return "Drive_Green"
 
@@ -48,8 +48,8 @@ class Drive_GreenState:
         M = cv2.moments(img_bin)
         move = self.state_machine.move
 
-        ros_img = self.state_machine.bridge.cv2_to_imgmsg(img_bin, encoding="mono8")
-        self.state_machine.pub_processed_cam.publish(ros_img)
+        #ros_img = self.state_machine.bridge.cv2_to_imgmsg(img_bin, encoding="mono8")
+        #self.state_machine.pub_processed_cam.publish(ros_img)
 
         if M["m00"] > 0:
             cx = int(M["m10"] / M["m00"])
