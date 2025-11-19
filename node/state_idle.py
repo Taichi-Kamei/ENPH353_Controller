@@ -12,10 +12,10 @@ class Idle:
         
     def run(self):
         
-        # This is done just for the time trial.
-        if self.state_machine.idle is False:
-            self.state_machine.pub_time.publish("team14,1234,-1,END")
-            self.state_machine.idle = True
+        # # This is done just for the time trial.
+        # if self.state_machine.idle is False:
+        #     self.state_machine.pub_time.publish("team14,1234,-1,END")
+        #     self.state_machine.idle = True
         
         return "Idle"
     

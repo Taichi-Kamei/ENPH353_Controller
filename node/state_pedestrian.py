@@ -7,13 +7,14 @@ class PedestrianState:
 
     def enter(self):
         rospy.loginfo("Entering Pedestrian state")
+        self.state_machine.pub_time.publish("team14,1234,-1,END")
 
 
     def run(self):
 
-        
 
-        pass
+
+        return "Pedestrian"
 
 
     def exit(self):
