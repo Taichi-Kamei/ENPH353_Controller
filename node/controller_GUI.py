@@ -49,35 +49,64 @@ class Controller_App(QtWidgets.QMainWindow):
         self.sim_time_button.setIcon(self.pause_icon)
 
 
-    def SLOT_launch_score_tracker_script(self):
-        script = os.path.expanduser("~/ros_ws/src/2025_competition/enph353/enph353_utils/scripts/score_tracker.py")
-        self.score_tracker_process = subprocess.Popen(["python3", script], cwd = os.path.dirname(script)) 
+    def raw_image_cb(self, data):
+            self.raw_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            if self.view_type_button.currentText() == "Raw":
+                self.update_view(self.raw_image)
     
 
-    def SLOT_launch_state_machine_script(self):
-        self.state_machine_process = subprocess.Popen(["./state_machine.py"])
+    def contour_image_cb(self, data):
+        self.contour_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        if self.view_type_button.currentText() == "Contour":
+                self.update_view(self.contour_image)
 
 
-    ## Closes all the background processes (score_tracker.py and state_machine.py) when controller_GUI.py is terminated 
-    #  Uses Qt's event-handling system
+    def clue_detection_image_cb(self, data):
+        self.clue_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        if self.view_type_button.currentText() == "Clue":
+                self.update_view(self.clue)
+
+
+    def change_view_type(self):
+        type = self.view_type_button.currentText()
+
+        if type == "Raw":
+            self.update_view(self.raw_image)
+
+        elif type == "Contour":
+            self.update_view(self.contour_image)
+
+        elif type == "Clue":
+            self.update_view(self.contour_image)
+
+
+    def update_view(self, img):
+        if img is None:
+            return
+        
+        pixmap = self.convert_cv_to_pixmap(img)
+        pixmap = pixmap.scaled(self.camera_view.width(),
+                    self.camera_view.height(),
+                    QtCore.Qt.KeepAspectRatio)
+        
+        self.camera_view.setPixmap(pixmap)
+
+
+    ##
+    # Converts openCV image to QtGui with correct scaling
+    # Source: stackoverflow.com/questions/34232632/
     #
-    def closeEvent(self, event):
-        if self.score_tracker_process:
-            try:
-                self.score_tracker_process.terminate()
-                self.score_tracker_process.kill()
-            except:
-                pass
-
-        if self.state_machine_process:
-            try:
-                self.state_machine_process.terminate()
-                self.state_machine_process.kill()
-            except:
-                pass
-
-        event.accept()
-
+    #  @param self The object pointer
+    # @param cv_img Image as a openCV object
+    # @return Type QtGui image
+    def convert_cv_to_pixmap(self, cv_img):
+        cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        height, width, channel = cv_img.shape
+        bytesPerLine = channel * width
+        q_img = QtGui.QImage(cv_img.data, width, height, 
+                        bytesPerLine, QtGui.QImage.Format_RGB888)
+        return QtGui.QPixmap.fromImage(q_img)
+  
 
     def SLOT_sim_time(self):
         
@@ -101,8 +130,8 @@ class Controller_App(QtWidgets.QMainWindow):
         #TODO Figure out the reset position
         state = ModelState()
         state.model_name = "B1"
-        state.pose.position.x = 0
-        state.pose.position.y = 0
+        state.pose.position.x = -8
+        state.pose.position.y = -8
         state.pose.position.z = 0
         state.pose.orientation.w = 1
         state.reference_frame = "world"
@@ -111,66 +140,38 @@ class Controller_App(QtWidgets.QMainWindow):
             reset_service(state)
             rospy.loginfo("Robot reset!")
         except:
-            rospy.loginfo("Failed to reset model")
-
-
-    def raw_image_cb(self, data):
-            self.raw_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-            if self.view_type_button.currentText() == "Raw":
-                self.update_view(self.raw_image)
+            rospy.loginfo("Failed to reset model")    
+    
+    
+    def SLOT_launch_score_tracker_script(self):
+        script = os.path.expanduser("~/ros_ws/src/2025_competition/enph353/enph353_utils/scripts/score_tracker.py")
+        self.score_tracker_process = subprocess.Popen(["python3", script], cwd = os.path.dirname(script)) 
     
 
-    def contour_image_cb(self, data):
-        self.contour_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        if self.view_type_button.currentText() == "Contour":
-                self.update_view(self.contour_image)
+    def SLOT_launch_state_machine_script(self):
+        self.state_machine_process = subprocess.Popen(["./state_machine.py"])
 
-    def clue_detection_image_cb(self, data):
-        self.clue_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        if self.view_type_button.currentText() == "Clue":
-                self.update_view(self.clue)
 
-    # TODO: Make callback function for clue detection
-    
-    def change_view_type(self):
-        type = self.view_type_button.currentText()
-
-        if type == "Raw":
-            self.update_view(self.raw_image)
-
-        elif type == "Contour":
-            self.update_view(self.contour_image)
-
-        elif type == "Clue":
-            self.update_view(self.contour_image)
-    
-
-    ##
-    # Converts openCV image to QtGui with correct scaling
-    # Source: stackoverflow.com/questions/34232632/
+    ## 
+    # Closes all the background processes (score_tracker.py and state_machine.py) when controller_GUI.py is terminated 
+    # Uses Qt's event-handling system
     #
-    #  @param self The object pointer
-    # @param cv_img Image as a openCV object
-    # @return Type QtGui image
-    def convert_cv_to_pixmap(self, cv_img):
-        cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-        height, width, channel = cv_img.shape
-        bytesPerLine = channel * width
-        q_img = QtGui.QImage(cv_img.data, width, height, 
-                        bytesPerLine, QtGui.QImage.Format_RGB888)
-        return QtGui.QPixmap.fromImage(q_img)
+    def closeEvent(self, event):
+        if self.score_tracker_process:
+            try:
+                self.score_tracker_process.terminate()
+                self.score_tracker_process.kill()
+            except:
+                pass
 
+        if self.state_machine_process:
+            try:
+                self.state_machine_process.terminate()
+                self.state_machine_process.kill()
+            except:
+                pass
 
-    def update_view(self, img):
-        if img is None:
-            return
-        
-        pixmap = self.convert_cv_to_pixmap(img)
-        pixmap = pixmap.scaled(self.camera_view.width(),
-                    self.camera_view.height(),
-                    QtCore.Qt.KeepAspectRatio)
-        
-        self.camera_view.setPixmap(pixmap)
+        event.accept()
 
 
 
