@@ -32,14 +32,16 @@ class Controller_App(QtWidgets.QMainWindow):
         self.clue_detection_image = None
         
         self.sim_time_button.clicked.connect(self.SLOT_sim_time)
-        self.reset_robot_position_button.clicked.connect(self.SLOT_reset_robot_position)
         self.view_type_button.currentIndexChanged.connect(self.change_view_type)
+        self.reset_robot_position_button.clicked.connect(self.SLOT_reset_robot_position)
         self.launch_score_tracker_button.clicked.connect(self.SLOT_launch_score_tracker_script)
         self.launch_state_machine_button.clicked.connect(self.SLOT_launch_state_machine_script)
 
 
-        self.sub_raw_view = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.raw_image_cb, queue_size=1)
-        self.sub_contour_view = rospy.Subscriber("/processed_img", Image, self.contour_image_cb, queue_size= 1)
+        self.sub_raw_view = rospy.Subscriber("/B1/rrbot/camera1/image_raw",
+                                            Image, self.raw_image_cb, queue_size=1)
+        self.sub_contour_view = rospy.Subscriber("/processed_img",
+                                                 Image, self.contour_image_cb, queue_size= 1)
         # TODO Add subscriber for clue detection
         #self.sub_clue_view = rospy.Subscriber("/processed_img", Image, self.clue_detection_image_cb, queue_size= 1)
 
@@ -51,18 +53,21 @@ class Controller_App(QtWidgets.QMainWindow):
 
     def raw_image_cb(self, data):
             self.raw_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+
             if self.view_type_button.currentText() == "Raw":
                 self.update_view(self.raw_image)
     
 
     def contour_image_cb(self, data):
         self.contour_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+
         if self.view_type_button.currentText() == "Contour":
                 self.update_view(self.contour_image)
 
 
     def clue_detection_image_cb(self, data):
         self.clue_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+
         if self.view_type_button.currentText() == "Clue":
                 self.update_view(self.clue)
 
@@ -86,8 +91,7 @@ class Controller_App(QtWidgets.QMainWindow):
         
         pixmap = self.convert_cv_to_pixmap(img)
         pixmap = pixmap.scaled(self.camera_view.width(),
-                    self.camera_view.height(),
-                    QtCore.Qt.KeepAspectRatio)
+                    self.camera_view.height(), QtCore.Qt.KeepAspectRatio)
         
         self.camera_view.setPixmap(pixmap)
 
@@ -144,8 +148,10 @@ class Controller_App(QtWidgets.QMainWindow):
     
     
     def SLOT_launch_score_tracker_script(self):
-        script = os.path.expanduser("~/ros_ws/src/2025_competition/enph353/enph353_utils/scripts/score_tracker.py")
-        self.score_tracker_process = subprocess.Popen(["python3", script], cwd = os.path.dirname(script)) 
+        script = os.path.expanduser(
+            "~/ros_ws/src/2025_competition/enph353/enph353_utils/scripts/score_tracker.py")
+        self.score_tracker_process = subprocess.Popen(["python3", script],
+                                                      cwd = os.path.dirname(script)) 
     
 
     def SLOT_launch_state_machine_script(self):
