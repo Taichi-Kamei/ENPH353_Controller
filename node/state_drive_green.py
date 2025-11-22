@@ -19,9 +19,17 @@ class Drive_GreenState:
     def run(self):
         img = self.state_machine.image_data
 
-        if self.detect_red(img) and self.state_machine.red_count == 0:
-                self.state_machine.red_count += 1
-                return "Pedestrian"
+        # if self.detect_red(img) and self.state_machine.red_count == 0:
+        #         self.state_machine.red_count += 1
+        #         return "Pedestrian"
+
+        
+        if self.state_machine.red_count == 1:
+            return "Pedestrian"
+        
+        if self.state_machine.pink_count == 1:
+            #TODO For now idle but later dirt raod state
+            return "Idle"
         
         self.drive(img)
         

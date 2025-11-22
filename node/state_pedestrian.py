@@ -7,15 +7,23 @@ class PedestrianState:
 
     def enter(self):
         rospy.loginfo("Entering Pedestrian state")
-        self.state_machine.pub_time.publish("team14,1234,-1,END")
-
+        
 
     def run(self):
+        
+        move = self.state_machine.move
 
+        move.linear.x = 2
+        move.linear.z = 0.01
 
+        self.state_machine.pub_vel.publish(move)
+
+        if self.state_machine.red_count == 2:
+            return "Drive_Green"
 
         return "Pedestrian"
 
 
     def exit(self):
         rospy.loginfo("Exiting Pedestrian State")
+        self.state_machine.pub_time.publish("team14,1234,-1,END")

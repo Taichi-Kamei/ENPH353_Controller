@@ -23,16 +23,12 @@ class StateMachine:
         self.image_data = None
         self.lidar_data = None
 
-        
         self.red_count = 0
         self.pink_count = 0
         self.clue_board = 0
 
         self.idle = False
         self.board_detected = False
-        self.green_road = True
-        self.dirt_road = False
-        self.off_road = False
 
 
         self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
@@ -62,8 +58,11 @@ class StateMachine:
     def image_cb(self, data):
         try:
             self.image_data = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            self.detect_tape()
         except CvBridgeError as e:
             print(e)
+
+        
 
         # TODO: Add clue detection(CNN) code here
         # if homography detected, makes self.board_detected = True
@@ -89,6 +88,44 @@ class StateMachine:
                 self.current_state.enter()
             
             rate.sleep()
+    
+    def detect_tape(self):
+
+            if self.image_data is None:
+                return
+
+            img = self.image_data
+            
+            frame_height, frame_width, _ = img.shape
+
+            top = int (frame_height * 0.85)
+            bottom = frame_height
+            left = 0
+            right = frame_width
+
+            #Crops 90% of the top
+            img_cropped = img[top:bottom, left:right]
+
+            hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+            lower_red1 = (0, 100, 100)
+            upper_red1 = (10, 255, 255)
+
+            lower_red2 = (170, 100, 100)
+            upper_red2 = (180, 255, 255)
+
+            mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+            mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+
+            mask_red = mask1 | mask2
+
+            if mask_red.sum() > 0:
+                 self.red_count += 1
+            
+            #TODO Do color detection for pink tape
+
+
+
 
 ## Main function which initializes the state machine and instanciate callback function whenvever new data is ready
 #
