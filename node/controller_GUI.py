@@ -41,6 +41,7 @@ class Controller_App(QtWidgets.QMainWindow):
         self.sub_raw_view = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.raw_image_cb, queue_size=1)
         self.sub_contour_view = rospy.Subscriber("/processed_img", Image, self.contour_image_cb, queue_size= 1)
         # TODO Add subscriber for clue detection
+        #self.sub_clue_view = rospy.Subscriber("/processed_img", Image, self.clue_detection_image_cb, queue_size= 1)
 
         self.sim_paused = False
         self.pause_icon = QtGui.QIcon("icons/icons8-pause-30.png")
@@ -124,6 +125,11 @@ class Controller_App(QtWidgets.QMainWindow):
         if self.view_type_button.currentText() == "Contour":
                 self.update_view(self.contour_image)
 
+    def clue_detection_image_cb(self, data):
+        self.clue_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        if self.view_type_button.currentText() == "Clue":
+                self.update_view(self.clue)
+
     # TODO: Make callback function for clue detection
     
     def change_view_type(self):
@@ -136,7 +142,7 @@ class Controller_App(QtWidgets.QMainWindow):
             self.update_view(self.contour_image)
 
         elif type == "Clue":
-            pass
+            self.update_view(self.contour_image)
     
 
     ##
