@@ -1,6 +1,7 @@
 import cv2
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
+import math
 
 class Drive_GreenState:
 
@@ -8,8 +9,8 @@ class Drive_GreenState:
         self.state_machine = state_machine
         self.bridge = CvBridge()
         self.threshold = 170    
-        self.linear_speed = 2
-        self.kp = 0.04
+        self.linear_speed = 1
+        self.kp = 0.03
 
 
     def enter(self):
@@ -48,15 +49,15 @@ class Drive_GreenState:
 
         frame_height, frame_width, _ = img.shape
 
-        top = int (frame_height * 0.5)
+        top = int (frame_height * 0.55)
         bottom = frame_height
         left = 0
         right = frame_width
         #left line
         left_L = 0
-        right_L = int(frame_width * 0.3)
+        right_L = int(frame_width * 0.4)
         #right line
-        left_R = int(frame_width * 0.7)
+        left_R = int(frame_width * 0.6)
         right_R = frame_width
 
 
@@ -115,13 +116,14 @@ class Drive_GreenState:
         
         contours, hierarchy = cv2.findContours(img_bin, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
-        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 2000]
+        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 1300]
 
-        contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
+        contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0], reverse=True)
+
 
         if len(contours) >= 2:
-            cnt_left = contours[0]
-            cnt_right = contours[-1]
+            cnt_right = contours[0]
+            cnt_left = contours[-1]
 
             M_left = cv2.moments(cnt_left)
             M_right = cv2.moments(cnt_right)
@@ -133,10 +135,15 @@ class Drive_GreenState:
                 cy_right = int(M_right["m01"] / M_right["m00"])
 
                 lane_center = (cx_left + cx_right) // 2
+                #lane_center = math.sqrt((cx_left - cx_right)**2 + (cy_left - cy_right)**2) // 2
 
                 error = (frame_width / 2.0) - lane_center
-                self.state_machine.move.linear.x  = speed
-                self.state_machine.move.angular.z = self.kp * error
+                if error <= 10:
+                    self.state_machine.move.linear.x  = speed
+                    self.state_machine.move.angular.z = 0.005 * error
+                else:
+                    self.state_machine.move.linear.x  = speed
+                    self.state_machine.move.angular.z = self.kp * error
 
         elif len(contours) == 1:
             M = cv2.moments(contours[0])
@@ -146,14 +153,27 @@ class Drive_GreenState:
                 cy = int(M["m01"] / M["m00"])
 
                 if cx <= frame_width * 0.5:
-                    self.state_machine.move.linear.x  = speed
-                    self.state_machine.move.angular.z = -2
+                    #self.state_machine.move.linear.x  = 0.5
+                    if cy >= frame_height * 0.3:
+                        self.state_machine.move.linear.x  = 0.7
+                        self.state_machine.move.angular.z = -1
+                    elif cy >= 0.5:
+                        self.state_machine.move.linear.x  = 0.4
+                        self.state_machine.move.angular.z = -3
+                    else:
+                        self.state_machine.move.linear.x  = 0.2
+                        self.state_machine.move.angular.z = -4
                 else:
-                    self.state_machine.move.linear.x  = speed
-                    self.state_machine.move.angular.z = 2
+                    if cy >= frame_height * 0.3:
+                        self.state_machine.move.linear.x  = 0.7
+                        self.state_machine.move.angular.z = 1
+                    elif cy >= 0.5:
+                        self.state_machine.move.linear.x  = 0.4
+                        self.state_machine.move.angular.z = 3
+                    else:
+                        self.state_machine.move.linear.x  = 0.2
+                        self.state_machine.move.angular.z = 4
 
-
-                
             
         with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
 

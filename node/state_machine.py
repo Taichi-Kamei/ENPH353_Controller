@@ -120,6 +120,7 @@ class StateMachine:
 
             if change_in_red_pixel < 0 and self.red_count == 1:
                  self.cross_walk = True
+                 
             img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
             self.pub_tape_cam.publish(img_a)
 
