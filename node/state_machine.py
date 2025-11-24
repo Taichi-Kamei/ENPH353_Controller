@@ -9,7 +9,7 @@ from state_pedestrian import PedestrianState
 from state_truck import TruckState
 from state_idle import Idle
 
-from sensor_msgs.msg import Image, LaserScan
+from sensor_msgs.msg import Image
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from rosgraph_msgs.msg import Clock
@@ -17,6 +17,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 class StateMachine:
+
     def __init__(self):
         self.bridge = CvBridge()
         self.move = Twist()
@@ -37,8 +38,7 @@ class StateMachine:
 
         self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
         self.sub_cam = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
-        
-        #self.sub = rospy.Subscriber("/scan", LaserScan, self.lidar_cb)
+
 
         self.states = {
            "Clue_Detect": Clue_DetectState(self),
@@ -51,6 +51,7 @@ class StateMachine:
         self.current_state = self.states["Drive_Green"]
         self.current_state.enter()
 
+
     ## Receives image data through ROS, analyzes the location of the track in the image using OpenCV, 
     #  and sends appropriate valeu for yaw to the robot to realign itself with the track.
     #  @param self The object pointer
@@ -62,17 +63,59 @@ class StateMachine:
         except CvBridgeError as e:
             print(e)
 
-        
 
         # TODO: Add clue detection(CNN) code here
         # if homography detected, makes self.board_detected = True
         # In each state, it'll transition to "Send_Clue" state
  
-    #def lidar_cb(self, data):
-        #self.lidar_data  data
+
 
     def clock_cb(self, data):
             self.timer = data
+    
+
+    def detect_tape(self):
+
+            if self.image_data is None:
+                return
+
+            img = self.image_data
+            
+            frame_height, frame_width, _ = img.shape
+
+            top = int (frame_height * 0.85)
+            bottom = frame_height
+            left = int (frame_width * 0.4)
+            right = frame_width
+
+            img_cropped = img[top:bottom, left:right]
+
+            hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+            lower_red1 = (0, 100, 200)
+            upper_red1 = (10, 255, 255)
+
+            lower_red2 = (170, 100, 200)
+            upper_red2 = (180, 255, 255)
+
+            mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
+            mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
+
+            mask_red = mask_red1 | mask_red2
+
+            if mask_red.sum() > 2700:
+                 self.red_count += 1
+            
+
+            lower_pink = (130, 100, 200)
+            upper_pink = (170, 255, 255)
+
+            mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
+
+            if mask_pink.sum() > 1000:
+                 self.pink_count += 1
+                 
+
 
     def run(self):
         rate = rospy.Rate(20)
@@ -88,43 +131,6 @@ class StateMachine:
                 self.current_state.enter()
             
             rate.sleep()
-    
-    def detect_tape(self):
-
-            if self.image_data is None:
-                return
-
-            img = self.image_data
-            
-            frame_height, frame_width, _ = img.shape
-
-            top = int (frame_height * 0.85)
-            bottom = frame_height
-            left = 0
-            right = frame_width
-
-            #Crops 90% of the top
-            img_cropped = img[top:bottom, left:right]
-
-            hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
-
-            lower_red1 = (0, 100, 100)
-            upper_red1 = (10, 255, 255)
-
-            lower_red2 = (170, 100, 100)
-            upper_red2 = (180, 255, 255)
-
-            mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-            mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-
-            mask_red = mask1 | mask2
-
-            if mask_red.sum() > 0:
-                 self.red_count += 1
-            
-            #TODO Do color detection for pink tape
-
-
 
 
 ## Main function which initializes the state machine and instanciate callback function whenvever new data is ready

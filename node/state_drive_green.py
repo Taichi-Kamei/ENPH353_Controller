@@ -17,22 +17,20 @@ class Drive_GreenState:
 
 
     def run(self):
-        img = self.state_machine.image_data
-
-        # if self.detect_red(img) and self.state_machine.red_count == 0:
-        #         self.state_machine.red_count += 1
-        #         return "Pedestrian"
-
         
+        img = self.state_machine.image_data
+        
+
         if self.state_machine.red_count == 1:
+            self.drive(img, 0.5)
             return "Pedestrian"
         
         if self.state_machine.pink_count == 1:
             #TODO For now idle but later dirt raod state
             return "Idle"
         
-        self.drive(img)
-        
+        self.drive(img, self.linear_speed)
+
         return "Drive_Green"
 
 
@@ -40,7 +38,7 @@ class Drive_GreenState:
         rospy.loginfo("Exiting Drive Green State")
     
 
-    def drive(self, img):
+    def drive(self, img, speed):
         
         if img is None:
             return
@@ -79,7 +77,7 @@ class Drive_GreenState:
                 lane_center = (cx_left + cx_right) // 2
 
                 error = (frame_width / 2.0) - lane_center
-                move.linear.x  = self.linear_speed
+                move.linear.x  = speed
                 move.angular.z = self.kp * error
 
         with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
