@@ -17,11 +17,12 @@ from std_srvs.srv import Empty
 
 
 ##
-# Backend for the "./Controller_GUI.ui" using Qt5.
-# Allows control over the Gazebo simulation world, launch scripts for
-# running the score tracker and the robot,and view robot's raw/contour/clue_detection camera view
+# Backend for the "./Controller_GUI.ui"
+# Allows control over the Gazebo simulation world, launching scripts for
+# running the score tracker and the robot, and viewing robot's raw/contour/clue_detection camera view
 #
 # Requires user to launch the Gazebo simulation beforehand.
+# Subscribed to "/B1/rrbot/camera1/image_raw", and "/processed_img" (custom) ROS nodes
 #
 class Controller_App(QtWidgets.QMainWindow):
 
@@ -170,9 +171,10 @@ class Controller_App(QtWidgets.QMainWindow):
         state.pose.position.y = 2.5
         state.pose.position.z = 0.1
 
+        #Chat did the math for me to make the robot face North (Maybe it's not north idk)
         state.pose.orientation.x = 0
         state.pose.orientation.y = 0
-        state.pose.orientation.z = 0.707 #Chat did the math for me to make the robot face up
+        state.pose.orientation.z = 0.707 
         state.pose.orientation.w = -0.707
         state.reference_frame = "world"
 
@@ -228,7 +230,7 @@ class Controller_App(QtWidgets.QMainWindow):
     # Uses Qt's event-handling system
     # 
     # @param self The object pointer
-    # @param event Qt's even handler
+    # @param event Qt's event handler
     def closeEvent(self, event):
         if self.score_tracker_process:
             try:
