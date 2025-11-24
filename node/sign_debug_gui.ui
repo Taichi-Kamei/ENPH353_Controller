@@ -1,0 +1,745 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SignDebugGUI</class>
+ <widget class="QMainWindow" name="SignDebugGUI">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>1000</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Sign Detection Debug GUI</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="mainLayout">
+    <item>
+     <layout class="QGridLayout" name="imageGridLayout">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QGroupBox" name="originalGroup">
+        <property name="title">
+         <string>1. Camera</string>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>200</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <widget class="QLabel" name="originalLabel">
+           <property name="minimumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid blue; background-color: black;</string>
+           </property>
+           <property name="text">
+            <string>Waiting for camera...</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QGroupBox" name="blueMaskGroup">
+        <property name="title">
+         <string>2. Blue Mask</string>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>200</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="QLabel" name="blueMaskLabel">
+           <property name="minimumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid blue; background-color: black;</string>
+           </property>
+           <property name="text">
+            <string>Blue mask</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QGroupBox" name="signGroup">
+        <property name="title">
+         <string>3. Sign</string>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>200</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <widget class="QLabel" name="signLabel">
+           <property name="minimumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid green; background-color: black;</string>
+           </property>
+           <property name="text">
+            <string>Sign</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QGroupBox" name="plateGroup">
+        <property name="title">
+         <string>4. Plate</string>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>200</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_4">
+         <item>
+          <widget class="QLabel" name="plateLabel">
+           <property name="minimumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid green; background-color: black;</string>
+           </property>
+           <property name="text">
+            <string>Plate</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QGroupBox" name="letterGroup">
+        <property name="title">
+         <string>5. Letters</string>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>200</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_5">
+         <item>
+          <widget class="QLabel" name="letterLabel">
+           <property name="minimumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid red; background-color: black;</string>
+           </property>
+           <property name="text">
+            <string>Letters</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QGroupBox" name="lettersGroup">
+        <property name="title">
+         <string>6. Individual</string>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>300</width>
+          <height>200</height>
+         </size>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <item>
+          <widget class="QWidget" name="lettersContainer">
+           <property name="maximumSize">
+            <size>
+             <width>280</width>
+             <height>160</height>
+            </size>
+           </property>
+           <layout class="QHBoxLayout" name="lettersLayout">
+            <property name="spacing">
+             <number>1</number>
+            </property>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="controlLayout">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <item>
+       <widget class="QGroupBox" name="blueControlGroup">
+        <property name="title">
+         <string>Blue Mask</string>
+        </property>
+        <property name="maximumHeight">
+         <number>150</number>
+        </property>
+        <layout class="QVBoxLayout" name="blueControlLayout">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QLabel" name="blueHueLabel">
+             <property name="text">
+              <string>H:</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>20</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="blueHueWidget" native="true">
+             <layout class="QHBoxLayout" name="blueHueLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_2">
+           <item>
+            <widget class="QLabel" name="blueSatLabel">
+             <property name="text">
+              <string>S:</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>20</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="blueSatWidget" native="true">
+             <layout class="QHBoxLayout" name="blueSatLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <widget class="QLabel" name="blueValLabel">
+             <property name="text">
+              <string>V:</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>20</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="blueValWidget" native="true">
+             <layout class="QHBoxLayout" name="blueValLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="grayControlGroup">
+        <property name="title">
+         <string>Gray Mask</string>
+        </property>
+        <property name="maximumHeight">
+         <number>150</number>
+        </property>
+        <layout class="QVBoxLayout" name="grayControlLayout">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QLabel" name="grayHueLabel">
+             <property name="text">
+              <string>H:</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>20</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="grayHueWidget" native="true">
+             <layout class="QHBoxLayout" name="grayHueLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_5">
+           <item>
+            <widget class="QLabel" name="graySatLabel">
+             <property name="text">
+              <string>S:</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>20</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="graySatWidget" native="true">
+             <layout class="QHBoxLayout" name="graySatLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <item>
+            <widget class="QLabel" name="grayValLabel">
+             <property name="text">
+              <string>V:</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>20</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="grayValWidget" native="true">
+             <layout class="QHBoxLayout" name="grayValLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="letterControlGroup">
+        <property name="title">
+         <string>Letters</string>
+        </property>
+        <property name="maximumHeight">
+         <number>120</number>
+        </property>
+        <layout class="QGridLayout" name="letterControlLayout">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="letterColorLabel">
+           <property name="text">
+            <string>Color:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QComboBox" name="letterColorCombo">
+           <property name="maximumSize">
+            <size>
+             <width>100</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <item>
+            <property name="text">
+             <string>Blue</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Black</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>White</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="minLetterAreaLabel">
+           <property name="text">
+            <string>Min Area:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="minLetterAreaSpin">
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="minimum">
+            <number>10</number>
+           </property>
+           <property name="maximum">
+            <number>1000</number>
+           </property>
+           <property name="value">
+            <number>50</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="cnnSizeLabel">
+           <property name="text">
+            <string>CNN Size:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="cnnSizeSpin">
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="minimum">
+            <number>16</number>
+           </property>
+           <property name="maximum">
+            <number>128</number>
+           </property>
+           <property name="value">
+            <number>32</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="paramGroup">
+        <property name="title">
+         <string>Processing</string>
+        </property>
+        <property name="maximumHeight">
+         <number>100</number>
+        </property>
+        <layout class="QGridLayout" name="paramLayout">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="areaLabel">
+           <property name="text">
+            <string>Min Area:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="areaSpin">
+           <property name="maximumSize">
+            <size>
+             <width>80</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="minimum">
+            <number>100</number>
+           </property>
+           <property name="maximum">
+            <number>50000</number>
+           </property>
+           <property name="value">
+            <number>5000</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="epsilonLabel">
+           <property name="text">
+            <string>Epsilon:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="epsilonSpin">
+           <property name="maximumSize">
+            <size>
+             <width>80</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>0.001000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.001000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.020000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="statusGroup">
+        <property name="title">
+         <string>Status</string>
+        </property>
+        <layout class="QVBoxLayout" name="statusLayout">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="statusLabel">
+           <property name="styleSheet">
+            <string notr="true">QLabel { padding: 5px; border: 1px solid gray; font-size: 10px; }</string>
+           </property>
+           <property name="text">
+            <string>Status: Waiting for camera</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="infoLabel">
+           <property name="styleSheet">
+            <string notr="true">QLabel { padding: 2px; font-size: 9px; }</string>
+           </property>
+           <property name="text">
+            <string>No sign detected</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="letterInfoLabel">
+           <property name="styleSheet">
+            <string notr="true">QLabel { padding: 2px; color: blue; font-size: 9px; }</string>
+           </property>
+           <property name="text">
+            <string>Letters: 0</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="buttonLayout">
+           <property name="spacing">
+            <number>2</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="saveButton">
+             <property name="text">
+              <string>Save</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>60</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="loadButton">
+             <property name="text">
+              <string>Load</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>60</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="resetButton">
+             <property name="text">
+              <string>Reset</string>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>60</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QPushButton" name="saveLettersButton">
+           <property name="text">
+            <string>Save Letters</string>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>200</width>
+             <height>16777215</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>10</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
