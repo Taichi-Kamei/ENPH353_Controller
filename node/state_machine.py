@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 import rospy
 import cv2
 
@@ -28,6 +29,10 @@ class StateMachine:
         self.pink_count = 0
         self.clue_board = 0
 
+        self.prev_red = None
+        self.current_red = None
+        
+        self.cross_walk = False
         self.idle = False
         self.board_detected = False
 
@@ -35,6 +40,7 @@ class StateMachine:
         self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
         self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
         self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
+        self.pub_tape_cam = rospy.Publisher("/tape_img", Image, queue_size = 1)
 
         self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
         self.sub_cam = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
@@ -78,13 +84,14 @@ class StateMachine:
 
             if self.image_data is None:
                 return
-
+            
+        
             img = self.image_data
             
             frame_height, frame_width, _ = img.shape
 
-            top = int (frame_height * 0.85)
-            bottom = frame_height
+            top = int (frame_height * 0.75)
+            bottom = int (frame_height * 0.95)
             left = int (frame_width * 0.4)
             right = frame_width
 
@@ -92,20 +99,39 @@ class StateMachine:
 
             hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
 
-            lower_red1 = (0, 100, 200)
+            lower_red1 = (0, 150, 230)
             upper_red1 = (10, 255, 255)
 
-            lower_red2 = (170, 100, 200)
-            upper_red2 = (180, 255, 255)
+            lower_red2 = (170, 150, 230)
+            upper_red2 = (179, 255, 255)
 
             mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
             mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
 
             mask_red = mask_red1 | mask_red2
 
-            if mask_red.sum() > 2700:
-                 self.red_count += 1
-            
+            self.current_red = mask_red
+
+            if self.prev_red is None:
+                 self.prev_red = self.current_red
+                 return
+
+            change_in_red_pixel = int(self.current_red.sum() / 255) - int(self.prev_red.sum() / 255 )
+
+            if change_in_red_pixel < 0 and self.red_count == 1:
+                 self.cross_walk = True
+            img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
+            self.pub_tape_cam.publish(img_a)
+
+            #rospy.loginfo(change_in_red_pixel)
+                            
+            if change_in_red_pixel > 10000:
+                 self.red_count = 1
+                 if self.cross_walk is True:
+                      self.red_count = 2
+
+
+            self.prev_red = self.current_red
 
             lower_pink = (130, 100, 200)
             upper_pink = (170, 255, 255)

@@ -17,7 +17,7 @@ from std_srvs.srv import Empty
 
 
 ##
-# Backend for the "./Controller_GUI.ui" using Qt5.
+# Backend for the "./Controller_GUI.ui".
 # Allows control over the Gazebo simulation world, 
 # launching scripts for running the score tracker and the state machine,
 # and viewing robot's raw/contour/clue_detection camera view
@@ -38,6 +38,7 @@ class Controller_App(QtWidgets.QMainWindow):
         self.raw_image = None
         self.contour_image = None
         self.clue_detection_image = None
+        self.tape_image = None
         
         self.sim_time_button.clicked.connect(self.SLOT_sim_time)
         self.view_type_button.currentIndexChanged.connect(self.change_view_type)
@@ -50,6 +51,8 @@ class Controller_App(QtWidgets.QMainWindow):
                                             Image, self.raw_image_cb, queue_size=1)
         self.sub_contour_view = rospy.Subscriber("/processed_img",
                                             Image, self.contour_image_cb, queue_size= 1)
+        self.sub_tape_view = rospy.Subscriber("/tape_img",
+                                            Image, self.tape_image_cb, queue_size= 1)
         # TODO Add subscriber for clue detection
         #self.sub_clue_view = rospy.Subscriber("/processed_img", Image, self.clue_detection_image_cb, queue_size= 1)
 
@@ -58,6 +61,13 @@ class Controller_App(QtWidgets.QMainWindow):
         self.resume_icon = QtGui.QIcon("icons/icons8-resume-button-30.png")
         self.sim_time_button.setIcon(self.pause_icon)
 
+
+    def tape_image_cb(self, data):
+        self.tape_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
+
+        if self.view_type_button.currentText() == "Clue":
+            self.update_view(self.tape_image)
+    
     ##
     # Callback function for the view_type: Raw
     # 
@@ -106,7 +116,7 @@ class Controller_App(QtWidgets.QMainWindow):
             self.update_view(self.contour_image)
 
         elif type == "Clue":
-            self.update_view(self.contour_image)
+            self.update_view(self.tape_image)
 
     ##
     # Updates the displayed view on the GUI
