@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-import math
-import rospy
+
 import cv2
+import rospy
 
 from state_clue_detect import Clue_DetectState
-from state_drive_green import Drive_GreenState
+from state_paved_road import Paved_RoadState
+from state_dirt_road import Dirt_RoadState
 from state_pedestrian import PedestrianState
 from state_truck import TruckState
 from state_idle import Idle
@@ -47,13 +48,14 @@ class StateMachine:
 
         self.states = {
            "Clue_Detect": Clue_DetectState(self),
-           "Drive_Green": Drive_GreenState(self),
+           "Paved_Road": Paved_RoadState(self),
+           "Off_Road": Dirt_RoadState(self),
            "Pedestrian": PedestrianState(self),
            "Truck": TruckState(self),
            "Idle": Idle(self)
         }
 
-        self.current_state = self.states["Drive_Green"]
+        self.current_state = self.states["Paved_Road"]
         self.current_state.enter()
 
 
@@ -123,7 +125,7 @@ class StateMachine:
                  if self.cross_walk is True:
                       self.red_count = 2
 
-            rospy.loginfo(f"{change_in_red_pixel}, {current_red_pixels}")
+            #rospy.loginfo(f"{change_in_red_pixel}, {current_red_pixels}")
             img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
             self.pub_tape_cam.publish(img_a)
 

@@ -24,7 +24,7 @@ class PedestrianState:
     def run(self):
         
         if self.state_machine.red_count == 2:
-            return "Drive_Green"
+            return "Paved_Road"
         
         self.current_image = self.state_machine.image_data
         frame_height, frame_width, _ = self.current_image.shape
