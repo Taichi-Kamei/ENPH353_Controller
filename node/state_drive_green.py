@@ -23,10 +23,6 @@ class Drive_GreenState:
     
         if self.state_machine.red_count == 1:
 
-            # self.state_machine.move.linear.x  = 0.5
-            # self.state_machine.move.angular.z = 0
-            # self.state_machine.pub_vel.publish(self.state_machine.move)
-
             return "Pedestrian"
         
         if self.state_machine.pink_count == 1:
@@ -47,7 +43,7 @@ class Drive_GreenState:
         if img is None:
             return
 
-        frame_height, frame_width, _ = img.shape
+        frame_height, frame_width, _= img.shape
 
         top = int (frame_height * 0.55)
         bottom = frame_height
@@ -68,10 +64,9 @@ class Drive_GreenState:
             cnt_right = contours[0]
             cnt_left = contours[-1]
 
-            if len(contours) == 3:
-                cnt_right = contours[0]
-                cnt_left = contours[1]
-            
+            # if len(contours) == 3:
+            #     cnt_right = contours[0]
+            #     cnt_left = contours[1]
 
             M_left = cv2.moments(cnt_left)
             M_right = cv2.moments(cnt_right)
@@ -82,89 +77,73 @@ class Drive_GreenState:
                 cx_right = int(M_right["m10"] / M_right["m00"])
                 cy_right = int(M_right["m01"] / M_right["m00"])
 
-                lane_center = (cx_left + cx_right) // 2
-
+                cx_center = (cx_left + cx_right) // 2
                 cy_difference = cy_left - cy_right
 
-                correction_factor = 1.0
-
+                slope = 1.15
+                higher_cy = cy_right
                 if cy_difference > 60:
-                    #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_R: {cy_right} / {frame_height}")
-                    if cy_right < 0.2 * frame_height:
-                        correction_factor = 1.5
-                    elif cy_right < 0.4 * frame_height:
-                        correction_factor = 1.3
-                    elif cy_right > 0.7 * frame_height:
-                        correction_factor = 1.1
-                elif cy_difference < -60:
-                    #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_L: {cy_left} / {frame_height}")
-                    if cy_left < 0.2 * frame_height:
-                        correction_factor = 0.5
-                    elif cy_left < 0.4 * frame_height:
-                        correction_factor = 0.7
-                    elif cy_left > 0.7 * frame_height:
-                        correction_factor = 0.9
+                    higher_cy = cy_left
+                    slope = -1 * slope
 
-                error = (frame_width / 2.0) - (lane_center * correction_factor)
-                rospy.loginfo(abs(cx_left - cx_right))
+                center_shift = slope * higher_cy
+                error = center_shift + (frame_width / 2.0) - cx_center
+
+                #correction_factor = 1.0
+                # if cy_difference > 60:    
+                #     #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_R: {cy_right} / {frame_height}")
+                #     if cy_right < 0.2 * frame_height:
+                #         correction_factor = 1.5
+                #     elif cy_right < 0.4 * frame_height:
+                #         correction_factor = 1.3
+                #     elif cy_right > 0.7 * frame_height:
+                #         correction_factor = 1.1
+                # elif cy_difference < -60:
+                #     #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_L: {cy_left} / {frame_height}")
+                #     if cy_left < 0.2 * frame_height:
+                #         correction_factor = 0.5
+                #     elif cy_left < 0.4 * frame_height:
+                #         correction_factor = 0.7
+                #     elif cy_left > 0.7 * frame_height:
+                #         correction_factor = 0.9
+
+                # error = (frame_width / 2.0) - (lane_center * correction_factor)
+                #rospy.loginfo(abs(cx_left - cx_right))
 
                 if abs(cx_left - cx_right) <= 300:
                     contours = contours[:-1]
                 else:
-                    rospy.loginfo(f"error: {error} angular: {self.kp * error}")
-                    if abs(error) <= 25:
-                        self.state_machine.move.linear.x  = 2
-                        self.state_machine.move.angular.z = 0
-                    else:
-                        self.state_machine.move.linear.x  = speed
-                        self.state_machine.move.angular.z = self.kp * error
+                    #rospy.loginfo(f"error: {error} angular: {self.kp * error}")
+                    # if abs(error) <= 25:
+                    #     self.state_machine.move.linear.x  = 2
+                    #     self.state_machine.move.angular.z = 0
+                    # else:
+                    self.state_machine.move.linear.x  = speed
+                    self.state_machine.move.angular.z = self.kp * error
 
-        elif len(contours) == 1:
+        if len(contours) == 1:
             M = cv2.moments(contours[0])
 
             if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
-                rospy.loginfo(f"cx: {cx} cy: {cy}")
 
-                cy_normalized = cy
-
+                # The center of the lane shifts significantly from the center of the frame during steep curve
+                # I did "Required shift from frame center proportional to Cy" and it worked well
+                # (slope value was experimentally chosen)
+                slope = 3
                 if cx <= frame_width * 0.5:
-                    error = ( -3 * cy_normalized + (frame_width / 2.0)) - cx
-                    self.state_machine.move.linear.x  = self.linear_speed
-                    self.state_machine.move.angular.z = self.kp * error
+                    slope = -1 * slope
 
-                    rospy.loginfo(f"error: {error} angular: {self.kp * error} normalized: {cy_normalized}")
-                else:
-                    error = (3 * cy_normalized + (frame_width / 2.0)) - cx
-                    self.state_machine.move.linear.x  = self.linear_speed
-                    self.state_machine.move.angular.z = self.kp * error
+                center_shift = slope * cy
+                error = center_shift + (frame_width / 2.0) - cx
 
-                    rospy.loginfo(f"error: {error} angular: {self.kp * error} normalized: {cy_normalized}")
+                self.state_machine.move.linear.x  = self.linear_speed
+                self.state_machine.move.angular.z = self.kp * error
 
-
-                # if cx <= frame_width * 0.5:
-                #     if cy <= frame_height * 0.1:
-                #         self.state_machine.move.linear.x  = 0.2
-                #         self.state_machine.move.angular.z = 0.08 * error
-                #     elif cy <= 0.3:
-                #         self.state_machine.move.linear.x  = 0.2
-                #         self.state_machine.move.angular.z = -2
-                #     else:
-                #         self.state_machine.move.linear.x  = 0.2
-                #         self.state_machine.move.angular.z = -2
-                # else:
-                #     if cy <= frame_height * 0.1:
-                #         self.state_machine.move.linear.x  = 0.2
-                #         self.state_machine.move.angular.z = 4
-                #     elif cy <= 0.3:
-                #         self.state_machine.move.linear.x  = 0.2
-                #         self.state_machine.move.angular.z = 3
-                #     else:
-                #         self.state_machine.move.linear.x  = 0.2
-                #         self.state_machine.move.angular.z = 2
-
-            
+                #rospy.loginfo(f"cx: {cx} cy: {cy}")
+                #rospy.loginfo(f"error: {error} angular: {self.kp * error} normalized: {cy_normalized}")
+        
         with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
 
         img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")

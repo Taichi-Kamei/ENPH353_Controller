@@ -23,8 +23,6 @@ class PedestrianState:
 
     def run(self):
         
-        
-        
         if self.state_machine.red_count == 2:
             return "Drive_Green"
         
@@ -50,7 +48,7 @@ class PedestrianState:
         _, thresh = cv2.threshold(gray_img, 100, 255, cv2.THRESH_BINARY)
 
         if thresh.sum() == 0:
-            self.state_machine.move.linear.x = 2
+            self.state_machine.move.linear.x = 1.6
             self.state_machine.move.angular.z = 0
 
             self.state_machine.pub_vel.publish(self.state_machine.move)

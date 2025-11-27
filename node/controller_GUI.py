@@ -260,7 +260,6 @@ class Controller_App(QtWidgets.QMainWindow):
         event.accept()
 
 
-
 if __name__ == "__main__":
     rospy.init_node("controller_GUI")
     app = QtWidgets.QApplication(sys.argv)

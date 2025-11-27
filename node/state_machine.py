@@ -29,8 +29,7 @@ class StateMachine:
         self.pink_count = 0
         self.clue_board = 0
 
-        self.prev_red = None
-        self.current_red = None
+        self.prev_red_pixels = None
         
         self.cross_walk = False
         self.idle = False
@@ -85,7 +84,6 @@ class StateMachine:
             if self.image_data is None:
                 return
             
-        
             img = self.image_data
             
             frame_height, frame_width, _ = img.shape
@@ -110,29 +108,26 @@ class StateMachine:
 
             mask_red = mask_red1 | mask_red2
 
-            self.current_red = mask_red
-
-            if self.prev_red is None:
-                 self.prev_red = self.current_red
+            current_red_pixels = int(mask_red.sum() / 255)
+            if self.prev_red_pixels is None:
+                 self.prev_red_pixels = current_red_pixels
                  return
-
-            change_in_red_pixel = int(self.current_red.sum() / 255) - int(self.prev_red.sum() / 255 )
+            
+            change_in_red_pixel = current_red_pixels - self.prev_red_pixels
 
             if change_in_red_pixel < 0 and self.red_count == 1:
                  self.cross_walk = True
-                 
-            img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
-            self.pub_tape_cam.publish(img_a)
-
-            #rospy.loginfo(change_in_red_pixel)
                             
-            if change_in_red_pixel > 9500:
+            if change_in_red_pixel > 4500 and  current_red_pixels > 27000:
                  self.red_count = 1
                  if self.cross_walk is True:
                       self.red_count = 2
 
+            rospy.loginfo(f"{change_in_red_pixel}, {current_red_pixels}")
+            img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
+            self.pub_tape_cam.publish(img_a)
 
-            self.prev_red = self.current_red
+            self.prev_red_pixels = current_red_pixels
 
             lower_pink = (130, 100, 200)
             upper_pink = (170, 255, 255)
