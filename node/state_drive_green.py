@@ -117,13 +117,17 @@ class Drive_GreenState:
         contours, hierarchy = cv2.findContours(img_bin, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
         contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 1300]
-
         contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0], reverse=True)
 
 
         if len(contours) >= 2:
+            
             cnt_right = contours[0]
             cnt_left = contours[-1]
+            if len(contours) == 3:
+                cnt_right = contours[0]
+                cnt_left = contours[1]
+            
 
             M_left = cv2.moments(cnt_left)
             M_right = cv2.moments(cnt_right)
@@ -134,16 +138,30 @@ class Drive_GreenState:
                 cx_right = int(M_right["m10"] / M_right["m00"])
                 cy_right = int(M_right["m01"] / M_right["m00"])
 
-                lane_center = (cx_left + cx_right) // 2
-                #lane_center = math.sqrt((cx_left - cx_right)**2 + (cy_left - cy_right)**2) // 2
+                factor = (cy_right - cy_left)  // frame_height 
 
-                error = (frame_width / 2.0) - lane_center
-                if error <= 10:
-                    self.state_machine.move.linear.x  = speed
-                    self.state_machine.move.angular.z = 0.005 * error
+                lane_center = (cx_left + cx_right) // 2
+
+                true_center = math.sqrt((cx_left - cx_right)**2 + (cy_left - cy_right)**2) / 2
+
+                angle = math.tanh(abs(cy_right - cy_left)/abs(cx_left - cx_right))
+
+                true_cx = true_center * math.cos(angle)
+
+                #lane_center = math.sqrt((cx_left - cx_right)**2 + elf.kp * error(cy_left - cy_right)**2) // 2
+                
+                true_cx = (true_cx + lane_center) // 2
+
+                error = (frame_width / 2.0) - true_cx
+                if abs(cx_left - cx_right) <= 200:
+                    contours = contours[:-1]
                 else:
-                    self.state_machine.move.linear.x  = speed
-                    self.state_machine.move.angular.z = self.kp * error
+                    if error <= 10:
+                        self.state_machine.move.linear.x  = speed
+                        self.state_machine.move.angular.z = 0
+                    else:
+                        self.state_machine.move.linear.x  = speed
+                        self.state_machine.move.angular.z = self.kp * error
 
         elif len(contours) == 1:
             M = cv2.moments(contours[0])
@@ -156,7 +174,7 @@ class Drive_GreenState:
                     #self.state_machine.move.linear.x  = 0.5
                     if cy >= frame_height * 0.3:
                         self.state_machine.move.linear.x  = 0.7
-                        self.state_machine.move.angular.z = -1
+                        self.state_machine.move.angular.z = -2
                     elif cy >= 0.5:
                         self.state_machine.move.linear.x  = 0.4
                         self.state_machine.move.angular.z = -3
@@ -166,7 +184,7 @@ class Drive_GreenState:
                 else:
                     if cy >= frame_height * 0.3:
                         self.state_machine.move.linear.x  = 0.7
-                        self.state_machine.move.angular.z = 1
+                        self.state_machine.move.angular.z = 2
                     elif cy >= 0.5:
                         self.state_machine.move.linear.x  = 0.4
                         self.state_machine.move.angular.z = 3
