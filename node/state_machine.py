@@ -126,7 +126,7 @@ class StateMachine:
 
             #rospy.loginfo(change_in_red_pixel)
                             
-            if change_in_red_pixel > 10000:
+            if change_in_red_pixel > 9500:
                  self.red_count = 1
                  if self.cross_walk is True:
                       self.red_count = 2

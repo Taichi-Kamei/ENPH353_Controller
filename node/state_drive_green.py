@@ -53,77 +53,21 @@ class Drive_GreenState:
         bottom = frame_height
         left = 0
         right = frame_width
-        #left line
-        left_L = 0
-        right_L = int(frame_width * 0.4)
-        #right line
-        left_R = int(frame_width * 0.6)
-        right_R = frame_width
-
-
-        # img_cropped_L = img[top:bottom, left_L:right_L]
-        # img_gray_L = cv2.cvtColor(img_cropped_L, cv2.COLOR_BGR2GRAY)
-        # _, img_bin_L = cv2.threshold(img_gray_L, self.threshold, 255, cv2.THRESH_BINARY)
-
-        # contours_L, hierarchy = cv2.findContours(img_bin_L, cv2.RETR_TREE,
-        #                                cv2.CHAIN_APPROX_SIMPLE)
-        # contours_L = [cnt for cnt in contours_L if cv2.contourArea(cnt) > 1200]
-
-        # img_cropped_R = img[top:bottom, left_R:right_R]
-        # img_gray_R = cv2.cvtColor(img_cropped_R, cv2.COLOR_BGR2GRAY)
-        # _, img_bin_R = cv2.threshold(img_gray_R, self.threshold, 255, cv2.THRESH_BINARY)
-
-        # contours_R, hierarchy = cv2.findContours(img_bin_R, cv2.RETR_TREE,
-        #                                cv2.CHAIN_APPROX_SIMPLE)
-        # contours_R = [cnt for cnt in contours_R if cv2.contourArea(cnt) > 1200]
-
-
-        # if len(contours_L) > 0:
-        #     M_left = cv2.moments(contours_L[0])
-        #     cx_left = int(M_left["m10"] / M_left["m00"])
-        
-        # if len(contours_R) > 0:
-        #     M_right = cv2.moments(contours_R[0])
-        #     cx_right = int(M_right["m10"] / M_right["m00"])
-
-        
-        # if len(contours_L) > 0 and len(contours_R) > 0:         
-        #     lane_center = (cx_left + left_R + cx_right) // 2
-
-        #     error = (frame_width / 2.0) - lane_center
-        #     self.state_machine.move.linear.x  = speed
-        #     self.state_machine.move.angular.z = self.kp * error
-        # elif len(contours_L) > 0:
-        #     self.state_machine.move.linear.x  = 0.3
-        #     self.state_machine.move.angular.z = -3
-        # else:
-        #     self.state_machine.move.linear.x  = 0.3
-        #     self.state_machine.move.angular.z = 3
-
-
-        # img_cropped_Middle = img[top:bottom, right_L:left_R]
-
-        # with_contours_L = cv2.drawContours(img_cropped_L, contours_L, -1, (0,255,0), 5)
-        # with_contours_R = cv2.drawContours(img_cropped_R, contours_R, -1, (0,255,0), 5)
-
-        # with_contours = cv2.hconcat([with_contours_L, img_cropped_Middle, with_contours_R])
-
 
         img_cropped = img[top:bottom, left:right]
         img_gray = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2GRAY)
         _, img_bin = cv2.threshold(img_gray, self.threshold, 255, cv2.THRESH_BINARY)
-
         
         contours, hierarchy = cv2.findContours(img_bin, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
         contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 1300]
         contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0], reverse=True)
 
-
         if len(contours) >= 2:
             
             cnt_right = contours[0]
             cnt_left = contours[-1]
+
             if len(contours) == 3:
                 cnt_right = contours[0]
                 cnt_left = contours[1]
@@ -138,26 +82,38 @@ class Drive_GreenState:
                 cx_right = int(M_right["m10"] / M_right["m00"])
                 cy_right = int(M_right["m01"] / M_right["m00"])
 
-                factor = (cy_right - cy_left)  // frame_height 
-
                 lane_center = (cx_left + cx_right) // 2
 
-                true_center = math.sqrt((cx_left - cx_right)**2 + (cy_left - cy_right)**2) / 2
+                cy_difference = cy_left - cy_right
 
-                angle = math.tanh(abs(cy_right - cy_left)/abs(cx_left - cx_right))
+                correction_factor = 1.0
 
-                true_cx = true_center * math.cos(angle)
+                if cy_difference > 60:
+                    #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_R: {cy_right} / {frame_height}")
+                    if cy_right < 0.2 * frame_height:
+                        correction_factor = 1.5
+                    elif cy_right < 0.4 * frame_height:
+                        correction_factor = 1.3
+                    elif cy_right > 0.7 * frame_height:
+                        correction_factor = 1.1
+                elif cy_difference < -60:
+                    #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_L: {cy_left} / {frame_height}")
+                    if cy_left < 0.2 * frame_height:
+                        correction_factor = 0.5
+                    elif cy_left < 0.4 * frame_height:
+                        correction_factor = 0.7
+                    elif cy_left > 0.7 * frame_height:
+                        correction_factor = 0.9
 
-                #lane_center = math.sqrt((cx_left - cx_right)**2 + elf.kp * error(cy_left - cy_right)**2) // 2
-                
-                true_cx = (true_cx + lane_center) // 2
+                error = (frame_width / 2.0) - (lane_center * correction_factor)
+                rospy.loginfo(abs(cx_left - cx_right))
 
-                error = (frame_width / 2.0) - true_cx
-                if abs(cx_left - cx_right) <= 200:
+                if abs(cx_left - cx_right) <= 300:
                     contours = contours[:-1]
                 else:
-                    if error <= 10:
-                        self.state_machine.move.linear.x  = speed
+                    rospy.loginfo(f"error: {error} angular: {self.kp * error}")
+                    if abs(error) <= 25:
+                        self.state_machine.move.linear.x  = 2
                         self.state_machine.move.angular.z = 0
                     else:
                         self.state_machine.move.linear.x  = speed
@@ -169,28 +125,44 @@ class Drive_GreenState:
             if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
+                rospy.loginfo(f"cx: {cx} cy: {cy}")
+
+                cy_normalized = cy
 
                 if cx <= frame_width * 0.5:
-                    #self.state_machine.move.linear.x  = 0.5
-                    if cy >= frame_height * 0.3:
-                        self.state_machine.move.linear.x  = 0.7
-                        self.state_machine.move.angular.z = -2
-                    elif cy >= 0.5:
-                        self.state_machine.move.linear.x  = 0.4
-                        self.state_machine.move.angular.z = -3
-                    else:
-                        self.state_machine.move.linear.x  = 0.2
-                        self.state_machine.move.angular.z = -4
+                    error = ( -3 * cy_normalized + (frame_width / 2.0)) - cx
+                    self.state_machine.move.linear.x  = self.linear_speed
+                    self.state_machine.move.angular.z = self.kp * error
+
+                    rospy.loginfo(f"error: {error} angular: {self.kp * error} normalized: {cy_normalized}")
                 else:
-                    if cy >= frame_height * 0.3:
-                        self.state_machine.move.linear.x  = 0.7
-                        self.state_machine.move.angular.z = 2
-                    elif cy >= 0.5:
-                        self.state_machine.move.linear.x  = 0.4
-                        self.state_machine.move.angular.z = 3
-                    else:
-                        self.state_machine.move.linear.x  = 0.2
-                        self.state_machine.move.angular.z = 4
+                    error = (3 * cy_normalized + (frame_width / 2.0)) - cx
+                    self.state_machine.move.linear.x  = self.linear_speed
+                    self.state_machine.move.angular.z = self.kp * error
+
+                    rospy.loginfo(f"error: {error} angular: {self.kp * error} normalized: {cy_normalized}")
+
+
+                # if cx <= frame_width * 0.5:
+                #     if cy <= frame_height * 0.1:
+                #         self.state_machine.move.linear.x  = 0.2
+                #         self.state_machine.move.angular.z = 0.08 * error
+                #     elif cy <= 0.3:
+                #         self.state_machine.move.linear.x  = 0.2
+                #         self.state_machine.move.angular.z = -2
+                #     else:
+                #         self.state_machine.move.linear.x  = 0.2
+                #         self.state_machine.move.angular.z = -2
+                # else:
+                #     if cy <= frame_height * 0.1:
+                #         self.state_machine.move.linear.x  = 0.2
+                #         self.state_machine.move.angular.z = 4
+                #     elif cy <= 0.3:
+                #         self.state_machine.move.linear.x  = 0.2
+                #         self.state_machine.move.angular.z = 3
+                #     else:
+                #         self.state_machine.move.linear.x  = 0.2
+                #         self.state_machine.move.angular.z = 2
 
             
         with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
