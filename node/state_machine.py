@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 import rospy
 import cv2
 
@@ -9,7 +10,7 @@ from state_pedestrian import PedestrianState
 from state_truck import TruckState
 from state_idle import Idle
 
-from sensor_msgs.msg import Image, LaserScan
+from sensor_msgs.msg import Image
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from rosgraph_msgs.msg import Clock
@@ -17,6 +18,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 class StateMachine:
+
     def __init__(self):
         self.bridge = CvBridge()
         self.move = Twist()
@@ -27,6 +29,10 @@ class StateMachine:
         self.pink_count = 0
         self.clue_board = 0
 
+        self.prev_red = None
+        self.current_red = None
+        
+        self.cross_walk = False
         self.idle = False
         self.board_detected = False
 
@@ -34,11 +40,11 @@ class StateMachine:
         self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
         self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
         self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
+        self.pub_tape_cam = rospy.Publisher("/tape_img", Image, queue_size = 1)
 
         self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
         self.sub_cam = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
-        
-        #self.sub = rospy.Subscriber("/scan", LaserScan, self.lidar_cb)
+
 
         self.states = {
            "Clue_Detect": Clue_DetectState(self),
@@ -51,6 +57,7 @@ class StateMachine:
         self.current_state = self.states["Drive_Green"]
         self.current_state.enter()
 
+
     ## Receives image data through ROS, analyzes the location of the track in the image using OpenCV, 
     #  and sends appropriate valeu for yaw to the robot to realign itself with the track.
     #  @param self The object pointer
@@ -62,17 +69,80 @@ class StateMachine:
         except CvBridgeError as e:
             print(e)
 
-        
 
         # TODO: Add clue detection(CNN) code here
         # if homography detected, makes self.board_detected = True
         # In each state, it'll transition to "Send_Clue" state
  
-    #def lidar_cb(self, data):
-        #self.lidar_data  data
+
 
     def clock_cb(self, data):
             self.timer = data
+    
+
+    def detect_tape(self):
+
+            if self.image_data is None:
+                return
+            
+        
+            img = self.image_data
+            
+            frame_height, frame_width, _ = img.shape
+
+            top = int (frame_height * 0.75)
+            bottom = int (frame_height * 0.95)
+            left = int (frame_width * 0.4)
+            right = frame_width
+
+            img_cropped = img[top:bottom, left:right]
+
+            hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+            lower_red1 = (0, 150, 230)
+            upper_red1 = (10, 255, 255)
+
+            lower_red2 = (170, 150, 230)
+            upper_red2 = (179, 255, 255)
+
+            mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
+            mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
+
+            mask_red = mask_red1 | mask_red2
+
+            self.current_red = mask_red
+
+            if self.prev_red is None:
+                 self.prev_red = self.current_red
+                 return
+
+            change_in_red_pixel = int(self.current_red.sum() / 255) - int(self.prev_red.sum() / 255 )
+
+            if change_in_red_pixel < 0 and self.red_count == 1:
+                 self.cross_walk = True
+                 
+            img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
+            self.pub_tape_cam.publish(img_a)
+
+            #rospy.loginfo(change_in_red_pixel)
+                            
+            if change_in_red_pixel > 10000:
+                 self.red_count = 1
+                 if self.cross_walk is True:
+                      self.red_count = 2
+
+
+            self.prev_red = self.current_red
+
+            lower_pink = (130, 100, 200)
+            upper_pink = (170, 255, 255)
+
+            mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
+
+            if mask_pink.sum() > 1000:
+                 self.pink_count += 1
+                 
+
 
     def run(self):
         rate = rospy.Rate(20)
@@ -88,43 +158,6 @@ class StateMachine:
                 self.current_state.enter()
             
             rate.sleep()
-    
-    def detect_tape(self):
-
-            if self.image_data is None:
-                return
-
-            img = self.image_data
-            
-            frame_height, frame_width, _ = img.shape
-
-            top = int (frame_height * 0.85)
-            bottom = frame_height
-            left = 0
-            right = frame_width
-
-            #Crops 90% of the top
-            img_cropped = img[top:bottom, left:right]
-
-            hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
-
-            lower_red1 = (0, 100, 100)
-            upper_red1 = (10, 255, 255)
-
-            lower_red2 = (170, 100, 100)
-            upper_red2 = (180, 255, 255)
-
-            mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-            mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-
-            mask_red = mask1 | mask2
-
-            if mask_red.sum() > 0:
-                 self.red_count += 1
-            
-            #TODO Do color detection for pink tape
-
-
 
 
 ## Main function which initializes the state machine and instanciate callback function whenvever new data is ready
