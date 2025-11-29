@@ -78,6 +78,26 @@ class Paved_RoadState:
                 cx_center = (cx_left + cx_right) // 2
                 cy_difference = cy_left - cy_right # if it's positive, right line Cy is higher (visually it is but opposite for calc since cy is from the top)
 
+                if xL == 0 and xR + wR == frame_width and abs(cx_left - cx_right) >= 60:   
+                    cx_center = (cx_left + cx_right) // 2
+                    cy_difference = cy_left - cy_right
+
+                    slope = 1.1
+                    if cy_difference > 60:
+                        higher_cy = cy_left
+                        slope = -1 * slope
+                        center_shift = slope * higher_cy
+                    elif cy_difference < 60:
+                        higher_cy = cy_right
+                        center_shift = slope * higher_cy
+                    else:
+                        center_shift = 0
+                    
+                    error = center_shift + (frame_width / 2.0) - cx_center
+                    if abs(error) < 100:
+                        self.state_machine.move.linear.x  = 0.8
+                        self.state_machine.move.angular.z = 0
+
                 # slope = 1.16
                 # center_shift = 0
 
@@ -95,36 +115,6 @@ class Paved_RoadState:
 
                 # if abs(cx_left - cx_right) <= 400:
                 #     contour_data = contour_data[:1]
-
-                if xL == 0 and xR + wR == frame_width and abs(cx_left - cx_right) >= 60:   
-                    cx_center = (cx_left + cx_right) // 2
-                    cy_difference = cy_left - cy_right
-
-                    slope = 1.1
-
-                    if cy_difference > 60:
-                        higher_cy = cy_left
-                        slope = -1 * slope
-                        center_shift = slope * higher_cy
-                    elif cy_difference < 60:
-                        higher_cy = cy_right
-                        center_shift = slope * higher_cy
-                    else:
-                        center_shift = 0
-                    
-                    error = center_shift + (frame_width / 2.0) - cx_center
-                    # # if abs(cx_left - cx_right) <= 300:
-                    #     #contours = contours[:-1]
-                    if abs(error) < 100:
-                        self.state_machine.move.linear.x  = 0.8
-                        self.state_machine.move.angular.z = 0
-                    # elif abs(error) < 150:
-                    #     self.state_machine.move.linear.x  = speed
-                    #     self.state_machine.move.angular.z = self.kp * error
-
-                # else:
-                #     self.state_machine.move.linear.x  = speed
-                #     self.state_machine.move.angular.z = self.kp * error
 
                 #old code:
                 #correction_factor = 1.0
@@ -181,9 +171,9 @@ class Paved_RoadState:
                     self.state_machine.move.linear.x  = speed
                     self.state_machine.move.angular.z = 0
         
+
         for (x, y, w, h), cnt in contour_data:
             cv2.rectangle(img_cropped, (x, y), (x + w, y + h), (0, 255, 0), 3)
-
         with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
         img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
         self.state_machine.pub_processed_cam.publish(img_a)

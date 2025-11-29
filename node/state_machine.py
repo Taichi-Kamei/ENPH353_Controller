@@ -59,7 +59,7 @@ class StateMachine:
            "Idle": Idle(self)
         }
 
-        self.current_state = self.states["Paved_Road"]
+        self.current_state = self.states["Dirt_Road"]
         self.current_state.enter()
 
 
