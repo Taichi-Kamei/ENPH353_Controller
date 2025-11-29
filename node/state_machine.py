@@ -7,6 +7,7 @@ import rospy
 from state_clue_detect import Clue_DetectState
 from state_paved_road import Paved_RoadState
 from state_dirt_road import Dirt_RoadState
+from state_narrow_road import Narrow_RoadState
 from state_pedestrian import PedestrianState
 from state_truck import TruckState
 from state_idle import Idle
@@ -31,25 +32,28 @@ class StateMachine:
         self.clue_board = 0
 
         self.prev_red_pixels = None
+        self.prev_pink_pixels = None
         
         self.cross_walk = False
         self.idle = False
         self.board_detected = False
 
 
-        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
-        self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
-        self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
-        self.pub_tape_cam = rospy.Publisher("/tape_img", Image, queue_size = 1)
-
         self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
         self.sub_cam = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
+
+        self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
+        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
+
+        self.pub_tape_cam = rospy.Publisher("/tape_img", Image, queue_size = 1)
+        self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
 
 
         self.states = {
            "Clue_Detect": Clue_DetectState(self),
            "Paved_Road": Paved_RoadState(self),
-           "Off_Road": Dirt_RoadState(self),
+           "Dirt_Road": Dirt_RoadState(self),
+           "Narrow_Road": Narrow_RoadState(self),
            "Pedestrian": PedestrianState(self),
            "Truck": TruckState(self),
            "Idle": Idle(self)
@@ -75,7 +79,6 @@ class StateMachine:
         # if homography detected, makes self.board_detected = True
         # In each state, it'll transition to "Send_Clue" state
  
-
 
     def clock_cb(self, data):
             self.timer = data
@@ -136,11 +139,23 @@ class StateMachine:
 
             mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
 
-            if mask_pink.sum() > 1000:
-                 self.pink_count += 1
+            current_pink_pixels = int(mask_pink.sum() / 255)
+            if self.prev_pink_pixels is None:
+                 self.prev_pink_pixels = current_pink_pixels
+                 return
+            
+            change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
+            # Just for now.
+            if change_in_pink_pixel < 0 and self.pink_count == 1:
+                 self.cross_walk = True
+                            
+            if change_in_pink_pixel > 4500 and  current_pink_pixels > 27000:
+                 self.pink_count = 1
+                 if self.cross_walk is True:
+                      self.pink_count = 2
+
+
                  
-
-
     def run(self):
         rate = rospy.Rate(20)
         self.pub_time.publish("Team14,password,0,START")

@@ -1,7 +1,7 @@
 import cv2
 import rospy
 
-from Cv_Bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge, CvBridgeError
 
 
 class Dirt_RoadState:
@@ -9,6 +9,11 @@ class Dirt_RoadState:
     def __init__(self, state_machine):
         self.state_machine = state_machine
         self.bridge = CvBridge()
+        self.threshold = 176    
+        self.linear_speed = 0.8
+        self.kp = 0.03
+
+        self.old_cx = None
     
 
     def enter(self):
@@ -20,7 +25,7 @@ class Dirt_RoadState:
         img = self.state_machine.image_data
 
         if self.state_machine.pink_count == 2:
-            return "Off_Road"
+            return "Narrow_Road"
 
         self.drive(img, self.linear_speed)
 
@@ -29,6 +34,7 @@ class Dirt_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Dirt Road state")
+
 
     def drive(self, img, speed):
         
@@ -48,14 +54,18 @@ class Dirt_RoadState:
         
         contours, hierarchy = cv2.findContours(img_bin, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
-        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 1300]
+        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 4000]
         #Sorts the contours from right to left
-        contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0], reverse=True)
+        contour_data = [(cv2.boundingRect(c), c) for c in contours]
+        contour_data.sort(key=lambda x: x[0][0])
 
         if len(contours) >= 2:
             
-            cnt_right = contours[0]
-            cnt_left = contours[-1]
+            cnt_right = contour_data[0][1]
+            cnt_left = contour_data[-1][1]
+
+            x1,y1,w1,h1 = contour_data[0][0]
+            x2,y2,w2,h2 = contour_data[-1][0]
 
             M_left = cv2.moments(cnt_left)
             M_right = cv2.moments(cnt_right)
@@ -67,49 +77,102 @@ class Dirt_RoadState:
                 cx_right = int(M_right["m10"] / M_right["m00"])
                 cy_right = int(M_right["m01"] / M_right["m00"])
 
-                cx_center = (cx_left + cx_right) // 2
-                cy_difference = cy_left - cy_right
+                # y1 + h1 = frame_height or x1 = 0
+                # y2 + h2 = frame_height or x2 + w2 = frame_width
+                #cx_left < 0.2 * frame_width and cx_right > 0.8 * frame_width (y1 + h1 == frame_height (y2 + h2 == frame_height or
+                if x1 == 0 and x2 + w2 == frame_width:   
+                    rospy.loginfo("yo")
+                    cx_center = (cx_left + cx_right) // 2
+                    cy_difference = cy_left - cy_right
 
-                slope = 1.15
-                center_shift = 0
+                    slope = 1.16
 
-                if cy_difference > 60:
-                    higher_cy = cy_left
-                    slope = -1 * slope
-                    center_shift = slope * higher_cy
-                elif cy_difference < 60:
-                    higher_cy = cy_right
-                    center_shift = slope * higher_cy
-                
-                error = center_shift + (frame_width / 2.0) - cx_center
+                    if cy_difference > 60:
+                        higher_cy = cy_left
+                        slope = -1 * slope
+                        center_shift = slope * higher_cy
+                    elif cy_difference < 60:
+                        higher_cy = cy_right
+                        center_shift = slope * higher_cy
+                    else:
+                        center_shift = 0
+                    
+                    error = center_shift + (frame_width / 2.0) - cx_center
+                    if abs(cx_left - cx_right) <= 300:
+                        contours = contours[:-1]
+                    elif abs(error) < 150:
+                        self.state_machine.move.linear.x  = speed
+                        self.state_machine.move.angular.z = 0
+                    else:
+                        self.state_machine.move.linear.x  = speed
+                        self.state_machine.move.angular.z = self.kp * error
 
-                if abs(cx_left - cx_right) <= 300:
-                    contours = contours[:-1]
-                else:
-                    self.state_machine.move.linear.x  = speed
-                    self.state_machine.move.angular.z = self.kp * error
+                if y1 + h1 == frame_height and y1 <= 0.5 * frame_height and x1 <= 0.2 * frame_width and y2 + h2 == frame_height and y2 <= 0.5 * frame_height and x2 >= 0.85 * frame_width:
+                    rospy.loginfo("wow")
+                    cx_center = (cx_left + cx_right) // 2
+                    cy_difference = cy_left - cy_right
 
-        if len(contours) == 1:
+                    slope = 1.16
+
+                    if cy_difference > 60:
+                        higher_cy = cy_left
+                        slope = -1 * slope
+                        center_shift = slope * higher_cy
+                    elif cy_difference < 60:
+                        higher_cy = cy_right
+                        center_shift = slope * higher_cy
+                    else:
+                        center_shift = 0
+                    
+                    error = center_shift + (frame_width / 2.0) - cx_center
+                    rospy.loginfo(error)
+                    if abs(cx_left - cx_right) <= 300:
+                        contours = contours[:-1]
+                    elif abs(error) < 150:
+                        self.state_machine.move.linear.x  = speed
+                        self.state_machine.move.angular.z = 0
+                    else:
+                        self.state_machine.move.linear.x  = speed
+                        self.state_machine.move.angular.z = self.kp * error
+
+        elif len(contours) == 1:
 
             M = cv2.moments(contours[0])
+            x,y,w,h = cv2.boundingRect(contours[0])
 
             if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
 
-                # The center of the lane shifts significantly from the center of the frame during steep curve
-                # I did "Required shift from frame center proportional to Cy" and it worked well
-                # (slope value was experimentally chosen)
-                slope = 3
-                if cx <= frame_width * 0.5:
-                    slope = -1 * slope
+                    #cy < 0.4 * frame_height or cx < 0.3 * frame_width or cx > 0.8 * frame_width
 
-                center_shift = slope * cy
-                error = center_shift + (frame_width / 2.0) - cx
+                if (y + h == frame_height and y <= 0.5 * frame_height and (x <= 0.2 * frame_width or x >= 0.75 * frame_width)) or (x == 0 or x + w == frame_width):
 
-                self.state_machine.move.linear.x  = self.linear_speed
-                self.state_machine.move.angular.z = self.kp * error
+                    # The center of the lane shifts significantly from the center of the frame during steep curve
+                    # I did "Required shift from frame center proportional to Cy" and it worked well
+                    # (slope value was experimentally chosen)
+                    slope = 3
+                    if cx <= frame_width * 0.5:
+                        slope = -1 * slope
+
+                    center_shift = slope * cy
+                    error = center_shift + (frame_width / 2.0) - cx
+
+                    self.state_machine.move.linear.x  = self.linear_speed
+                    self.state_machine.move.angular.z = self.kp * error
+                else:
+                    self.state_machine.move.linear.x  = speed
+                    self.state_machine.move.angular.z = 0
+
+        #         self.old_cx = cx
+        # elif self.old_cx is not None:
+        #     self.state_machine.move.linear.x  = 0.4
+        #     if self.old_cx < 0.5 * frame_width:
+        #         self.state_machine.move.angular.z = 0.2
+        #     else:
+        #         self.state_machine.move.angular.z = -0.2
         
+
         with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
         img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
         self.state_machine.pub_processed_cam.publish(img_a)
