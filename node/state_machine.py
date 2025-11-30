@@ -10,6 +10,7 @@ from state_dirt_road import Dirt_RoadState
 from state_narrow_road import Narrow_RoadState
 from state_pedestrian import PedestrianState
 from state_roundabout import RoundaboutState
+from state_mountain import MountainState
 from state_truck import TruckState
 from state_idle import Idle
 
@@ -57,11 +58,12 @@ class StateMachine:
            "Narrow_Road": Narrow_RoadState(self),
            "Pedestrian": PedestrianState(self),
            "Roundabout": RoundaboutState(self),
+           "Mountain": MountainState(self),
            "Truck": TruckState(self),
            "Idle": Idle(self)
         }
 
-        self.current_state = self.states["Truck"]
+        self.current_state = self.states["Mountain"]
         self.current_state.enter()
 
 
