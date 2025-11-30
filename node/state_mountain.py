@@ -9,9 +9,9 @@ class MountainState:
     def __init__(self, state_machine):
         self.state_machine = state_machine
         self.bridge = CvBridge()
-        self.threshold = 186    
+        self.threshold = 180    
         self.linear_speed = 0.8
-        self.kp = 0.03
+        self.kp = 0.02
 
 
     def enter(self):
@@ -37,7 +37,7 @@ class MountainState:
 
         frame_height, frame_width, _= img.shape
 
-        top = int (frame_height * 0.55)
+        top = int (frame_height * 0.6)
         bottom = frame_height
         left = 0
         right = frame_width
@@ -75,7 +75,7 @@ class MountainState:
             M_left = cv2.moments(cnt_left)
             M_right = cv2.moments(cnt_right)
 
-            if M_left["m00"] > 0 and M_right["m00"] > 0:
+            if M_left["m00"] > 0 and M_right["m00"] > 0 and hL >= 0.3 * frame_height and hR >= 0.3 * frame_height:
 
                 cx_left = int(M_left["m10"] / M_left["m00"])
                 cy_left = int(M_left["m01"] / M_left["m00"])
@@ -85,14 +85,17 @@ class MountainState:
                 left_at_edge  = (xL == 0)
                 right_at_edge = (xR + wR == frame_width)
 
-                wide_enough = abs(cx_left - cx_right) >= 120
-
+                wide_enough = abs(cx_left - cx_right) >= 300
+                
                 right_valid = (yR <= 3) and (yR + hR <= 0.4 * frame_height)
                 left_valid  = (yL >= 3) and (yL + hL <= 0.4 * frame_height)
 
+                if abs(cx_left - cx_right) <= 300:
+                            contours = contours[:1]
 
                 if left_at_edge and right_at_edge and wide_enough and right_valid and left_valid:   
-                        rospy.loginfo("yo")
+                        
+                        rospy.loginfo(frame_width)
                         cx_center = (cx_left + cx_right) // 2
                         cy_difference = cy_left - cy_right
 
@@ -109,22 +112,21 @@ class MountainState:
                             center_shift = 0
                         
                         error = center_shift + (frame_width / 2.0) - cx_center
-                        if abs(cx_left - cx_right) <= 300:
-                            contours = contours[:-1]
-                        elif abs(error) < 150:
+                        
+                        if abs(error) < 150:
                             self.state_machine.move.linear.x  = speed
                             self.state_machine.move.angular.z = 0
                         else:
                             self.state_machine.move.linear.x  = speed
                             self.state_machine.move.angular.z = self.kp * error
 
-        elif len(contour_data) == 1:
+        if len(contour_data) == 1:
 
             (x,y,w,h), cnt = contour_data[0]
 
             is_bottom_touching = (y + h) >= frame_height - 2
             is_left_edge       = x <= 0.1 * frame_width
-            is_right_edge      = x + w >= 0.8 * frame_width
+            is_right_edge      = x + w >= 0.7 * frame_width
             is_touching_side   = (x == 0) or (x + w == frame_width)
             is_tall = h >= 0.2 * frame_height
 
@@ -139,7 +141,7 @@ class MountainState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 1.7
+                    slope = 2.5
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -154,9 +156,9 @@ class MountainState:
 
         
         for (x, y, w, h), cnt in contour_data:
-            cv2.rectangle(img_cropped, (x, y), (x + w, y + h), (0, 255, 0), 3)
+            cv2.rectangle(img_no_blue_gray, (x, y), (x + w, y + h), (0, 255, 0), 3)
 
-        with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
+        with_contours = cv2.drawContours(img_no_blue_gray, contours, -1, (0,255,0), 5)
         img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
         #img_a = self.bridge.cv2_to_imgmsg(img_bin, encoding="mono8")
         self.state_machine.pub_processed_cam.publish(img_a)
