@@ -9,6 +9,7 @@ from state_paved_road import Paved_RoadState
 from state_dirt_road import Dirt_RoadState
 from state_narrow_road import Narrow_RoadState
 from state_pedestrian import PedestrianState
+from state_post_crosswalk import Post_CrosswalkState
 from state_roundabout import RoundaboutState
 from state_off_road import Off_RoadState
 from state_mountain import MountainState
@@ -58,6 +59,7 @@ class StateMachine:
            "Dirt_Road": Dirt_RoadState(self),
            "Narrow_Road": Narrow_RoadState(self),
            "Pedestrian": PedestrianState(self),
+           "Post_Crosswalk": Post_CrosswalkState(self),
            "Roundabout": RoundaboutState(self),
            "Off_Road": Off_RoadState(self),
            "Mountain": MountainState(self),
@@ -133,32 +135,6 @@ class StateMachine:
                 self.red_count = 1
                 if self.cross_walk is True:
                     self.red_count = 2
-
-        #rospy.loginfo(f"{change_in_red_pixel}, {current_red_pixels}")
-        # img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
-        # self.pub_tape_cam.publish(img_a)
-
-        # self.prev_red_pixels = current_red_pixels
-
-        # lower_pink = (130, 100, 200)
-        # upper_pink = (170, 255, 255)
-
-        # mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
-
-        # current_pink_pixels = int(mask_pink.sum() / 255)
-        # if self.prev_pink_pixels is None:
-        #         self.prev_pink_pixels = current_pink_pixels
-        #         return
-        
-        # change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
-        # # Just for now.
-        # if change_in_pink_pixel < 0 and self.pink_count == 1:
-        #         self.cross_walk = True
-                        
-        # if change_in_pink_pixel > 4500 and  current_pink_pixels > 27000:
-        #         self.pink_count = 1
-        #         if self.cross_walk is True:
-        #             self.pink_count = 2
 
 
                  
