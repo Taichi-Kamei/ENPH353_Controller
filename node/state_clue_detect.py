@@ -23,17 +23,25 @@ class Clue_DetectState:
                 error = (frame_width / 2) - cx
                 
                 if abs(error) <= 3:
-                    return contour
+                    self.clue_detect()
+
                 
                 self.state_machine.move.linear.x  = 0
                 self.state_machine.move.angular.z = self.kp * error
                 self.state_machine.pub_vel.publish(self.state_machine.move)
 
-        #if self.state_machine.prev_state = 
+        
+
+
+        return self.state_machine.transition_states[self.state_machine.prev_state]
 
 
     def exit(self):
         self.state_machine.board_detected = False
         rospy.loginfo("Exiting Pedestrian State")
         self.state_machine.prev_state = "Clue_Detect"
-        
+
+    
+    def clue_detect(self):
+         #TODO
+         pass

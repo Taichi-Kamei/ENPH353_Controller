@@ -66,8 +66,24 @@ class StateMachine:
            "Idle": Idle(self)
         }
 
-        self.prev_state = None
+        self.transition_states = {
+           "Clue_Detect": "Clue_DetectState(self)",
+           "Paved_Road": "Paved_RoadState(self)",
+           "Dirt_Road": "Narrow_Road",
+           "Narrow_Road": "Off_Road",
+           "Pedestrian": "Post_Crosswalk",
+           "Post_Crosswalk": "Paved_Road",
+           "Roundabout": "Dirt_Road",
+           "Off_Road": "Mountain",
+           "Mountain": "Idle",
+           "Truck": "Roundabout",
+           "Idle": "Idle"
+        }
+
+        
         self.current_state = self.states["Roundabout"]
+        #initialization
+        self.prev_state = "Paved_Road"
         self.current_state.enter()
 
 
