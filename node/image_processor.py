@@ -359,41 +359,6 @@ class ImageProcessor:
         
         for i in range(num_letters):
             letter_x = x + (i * letter_width)
-            letter_w = letter_width if i < num_letters - 1 else w - (i * letter_width)
-            
-            split_boxes.append((letter_x, y, letter_w, h))
-        
-        return split_boxes
-
-    def estimate_letter_width(self, image_width):
-        """
-        Estimate the width of a single letter in monospace font
-        Based on typical proportions for text on signs
-        """
-        # Typical monospace letters are about 5-10% of image width
-        # Adjust this based on your specific sign setup
-        return int(image_width * 0.08)  # 8% of image width
-
-    def calculate_num_letters(self, actual_width, expected_letter_width):
-        """
-        Calculate how many letters are likely in a wide bounding box
-        """
-        # Round to nearest integer
-        num_letters = max(2, round(actual_width / expected_letter_width))
-        
-        # Don't split into too many tiny boxes
-        max_reasonable_letters = 6
-        return min(num_letters, max_reasonable_letters)
-
-    def split_into_monospace_boxes(self, x, y, w, h, num_letters):
-        """
-        Split a wide bounding box into equal-width boxes for monospace letters
-        """
-        split_boxes = []
-        letter_width = w // num_letters
-        
-        for i in range(num_letters):
-            letter_x = x + (i * letter_width)
             # Ensure we don't go beyond original bounds
             letter_w = letter_width if i < num_letters - 1 else w - (i * letter_width)
             
@@ -404,7 +369,7 @@ class ImageProcessor:
     def get_letter_color_range(self, color_mode):
         """Get HSV range for letter color"""
         ranges = {
-            'blue': {'lower': np.array([90, 100, 50]), 'upper': np.array([130, 255, 255])},
+            'blue': {'lower': np.array([80, 100, 0]), 'upper': np.array([150, 255, 255])},
             'black': {'lower': np.array([0, 0, 0]), 'upper': np.array([180, 255, 50])},
             'white': {'lower': np.array([0, 0, 200]), 'upper': np.array([180, 50, 255])}
         }
@@ -422,20 +387,6 @@ class ImageProcessor:
         normalized = resized.astype(np.float32) / 255.0
         
         return normalized
-
-        # hsv_plate = cv2.cvtColor(letter_img, cv2.COLOR_BGR2HSV)
-        
-        # # Get letter color range
-        # letter_color = self.get_letter_color_range('blue')
-        # letter_mask = cv2.inRange(hsv_plate, letter_color['lower'], letter_color['upper'])
-
-        # # Clean mask
-        # kernel = np.ones((2,2), np.uint8)
-        # letter_mask_clean = cv2.morphologyEx(letter_mask, cv2.MORPH_OPEN, kernel)
-
-        # resized = cv2.resize(letter_mask_clean, (cnn_width, cnn_height))
-
-        # return resized
         
     def create_letter_display_image(self, cnn_img, cnn_width=100, cnn_height=150):
         """Create display image for individual letter"""
