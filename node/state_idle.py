@@ -9,15 +9,16 @@ class Idle:
     
     def enter(self):
         rospy.loginfo("Entering Idle")
+        #self.state_machine.pub_time.publish("team14,1234,-1,END")
         
     def run(self):
         
-        # # This is done just for the time trial.
-        # if self.state_machine.idle is False:
-        #     self.state_machine.pub_time.publish("team14,1234,-1,END")
-        #     self.state_machine.idle = True
-        
+        self.state_machine.move.linear.x  = 0
+        self.state_machine.move.angular.z = 0
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+
         return "Idle"
     
     def exit(self):
         rospy.loginfo("Exiting Idle")
+        self.state_machine.prev_state = "Idle"

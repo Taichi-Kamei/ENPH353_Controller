@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 
-import math
-import rospy
+
 import cv2
+import rospy
 
 from state_clue_detect import Clue_DetectState
-from state_drive_green import Drive_GreenState
+from state_paved_road import Paved_RoadState
+from state_dirt_road import Dirt_RoadState
+from state_narrow_road import Narrow_RoadState
 from state_pedestrian import PedestrianState
+from state_post_crosswalk import Post_CrosswalkState
+from state_roundabout import RoundaboutState
+from state_off_road import Off_RoadState
+from state_mountain import MountainState
 from state_truck import TruckState
 from state_idle import Idle
 
@@ -23,38 +29,45 @@ class StateMachine:
         self.bridge = CvBridge()
         self.move = Twist()
         self.image_data = None
-        self.lidar_data = None
+        self.board_contour = None, None
 
         self.red_count = 0
         self.pink_count = 0
         self.clue_board = 0
 
-        self.prev_red = None
-        self.current_red = None
+        self.prev_red_pixels = None
         
         self.cross_walk = False
         self.idle = False
         self.board_detected = False
 
 
-        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
-        self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
-        self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
-        self.pub_tape_cam = rospy.Publisher("/tape_img", Image, queue_size = 1)
-
         self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
         self.sub_cam = rospy.Subscriber("/B1/rrbot/camera1/image_raw", Image, self.image_cb, queue_size=1)
+
+        self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
+        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
+
+        self.pub_tape_cam = rospy.Publisher("/tape_img", Image, queue_size = 1)
+        self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
 
 
         self.states = {
            "Clue_Detect": Clue_DetectState(self),
-           "Drive_Green": Drive_GreenState(self),
+           "Paved_Road": Paved_RoadState(self),
+           "Dirt_Road": Dirt_RoadState(self),
+           "Narrow_Road": Narrow_RoadState(self),
            "Pedestrian": PedestrianState(self),
+           "Post_Crosswalk": Post_CrosswalkState(self),
+           "Roundabout": RoundaboutState(self),
+           "Off_Road": Off_RoadState(self),
+           "Mountain": MountainState(self),
            "Truck": TruckState(self),
            "Idle": Idle(self)
         }
 
-        self.current_state = self.states["Drive_Green"]
+        self.prev_state = None
+        self.current_state = self.states["Roundabout"]
         self.current_state.enter()
 
 
@@ -66,6 +79,7 @@ class StateMachine:
         try:
             self.image_data = self.bridge.imgmsg_to_cv2(data, "bgr8")
             self.detect_tape()
+            self.board_contour = self.detect_board_contour()
         except CvBridgeError as e:
             print(e)
 
@@ -75,75 +89,97 @@ class StateMachine:
         # In each state, it'll transition to "Send_Clue" state
  
 
-
     def clock_cb(self, data):
             self.timer = data
     
 
     def detect_tape(self):
 
-            if self.image_data is None:
-                return
-            
+        if self.image_data is None:
+            return
         
-            img = self.image_data
-            
-            frame_height, frame_width, _ = img.shape
+        img = self.image_data
+        
+        frame_height, frame_width, _ = img.shape
 
-            top = int (frame_height * 0.75)
-            bottom = int (frame_height * 0.95)
-            left = int (frame_width * 0.4)
-            right = frame_width
+        top = int (frame_height * 0.75)
+        bottom = int (frame_height * 0.95)
+        left = int (frame_width * 0.4)
+        right = frame_width
 
-            img_cropped = img[top:bottom, left:right]
+        img_cropped = img[top:bottom, left:right]
 
-            hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
 
-            lower_red1 = (0, 150, 230)
-            upper_red1 = (10, 255, 255)
+        lower_red1 = (0, 150, 230)
+        upper_red1 = (10, 255, 255)
 
-            lower_red2 = (170, 150, 230)
-            upper_red2 = (179, 255, 255)
+        lower_red2 = (170, 150, 230)
+        upper_red2 = (179, 255, 255)
 
-            mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
-            mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
+        mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
+        mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
 
-            mask_red = mask_red1 | mask_red2
+        mask_red = mask_red1 | mask_red2
 
-            self.current_red = mask_red
+        current_red_pixels = int(mask_red.sum() / 255)
+        if self.prev_red_pixels is None:
+                self.prev_red_pixels = current_red_pixels
+                return
+        
+        change_in_red_pixel = current_red_pixels - self.prev_red_pixels
 
-            if self.prev_red is None:
-                 self.prev_red = self.current_red
-                 return
+        if change_in_red_pixel < 0 and self.red_count == 1:
+                self.cross_walk = True
+                        
+        if change_in_red_pixel > 4500 and  current_red_pixels > 27000:
+                self.red_count = 1
+                if self.cross_walk is True:
+                    self.red_count = 2
 
-            change_in_red_pixel = int(self.current_red.sum() / 255) - int(self.prev_red.sum() / 255 )
 
-            if change_in_red_pixel < 0 and self.red_count == 1:
-                 self.cross_walk = True
+    def detect_board_contour(self):
+         
+        if self.image_data is None:
+            return None, None
+        
+        hsv = cv2.cvtColor(self.image_data, cv2.COLOR_BGR2HSV)
+
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (105, 150, 190)
+        upper_blue = (120, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+
+        #TODO crop
+
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 4000]
+
+        if len(contours) >= 1:
+             contour = max(contours, key=cv2.contourArea(contours))
+             return contour, frame_width
+
+        
+        # M = cv2.moments(contour)
+        # if M["m00"] > 0:
+        #         cx = int(M["m10"] / M["m00"])
+        #         cy = int(M["m01"] / M["m00"])
+        #         error = (frame_width / 2) - cx
+                
+        #         if abs(error) <= 3:
+        #             return contour
+                
+        #         self.state_machine.move.linear.x  = 0
+        #         self.state_machine.move.angular.z = self.kp * error
+        #         self.state_machine.pub_vel.publish(self.state_machine.move)
+        
+        return None, frame_width
+
+
+
                  
-            img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
-            self.pub_tape_cam.publish(img_a)
-
-            #rospy.loginfo(change_in_red_pixel)
-                            
-            if change_in_red_pixel > 10000:
-                 self.red_count = 1
-                 if self.cross_walk is True:
-                      self.red_count = 2
-
-
-            self.prev_red = self.current_red
-
-            lower_pink = (130, 100, 200)
-            upper_pink = (170, 255, 255)
-
-            mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
-
-            if mask_pink.sum() > 1000:
-                 self.pink_count += 1
-                 
-
-
     def run(self):
         rate = rospy.Rate(20)
         self.pub_time.publish("Team14,password,0,START")
@@ -155,6 +191,7 @@ class StateMachine:
             if self.next_state != self.current_state:
                 self.current_state.exit()
                 self.current_state = self.next_state
+                self.prev_state = self.current_state
                 self.current_state.enter()
             
             rate.sleep()
