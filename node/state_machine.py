@@ -10,6 +10,7 @@ from state_dirt_road import Dirt_RoadState
 from state_narrow_road import Narrow_RoadState
 from state_pedestrian import PedestrianState
 from state_roundabout import RoundaboutState
+from state_off_road import Off_RoadState
 from state_mountain import MountainState
 from state_truck import TruckState
 from state_idle import Idle
@@ -58,12 +59,13 @@ class StateMachine:
            "Narrow_Road": Narrow_RoadState(self),
            "Pedestrian": PedestrianState(self),
            "Roundabout": RoundaboutState(self),
+           "Off_Road": Off_RoadState(self),
            "Mountain": MountainState(self),
            "Truck": TruckState(self),
            "Idle": Idle(self)
         }
 
-        self.current_state = self.states["Mountain"]
+        self.current_state = self.states["Off_Road"]
         self.current_state.enter()
 
 
@@ -90,73 +92,73 @@ class StateMachine:
 
     def detect_tape(self):
 
-            if self.image_data is None:
+        if self.image_data is None:
+            return
+        
+        img = self.image_data
+        
+        frame_height, frame_width, _ = img.shape
+
+        top = int (frame_height * 0.75)
+        bottom = int (frame_height * 0.95)
+        left = int (frame_width * 0.4)
+        right = frame_width
+
+        img_cropped = img[top:bottom, left:right]
+
+        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+        lower_red1 = (0, 150, 230)
+        upper_red1 = (10, 255, 255)
+
+        lower_red2 = (170, 150, 230)
+        upper_red2 = (179, 255, 255)
+
+        mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
+        mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
+
+        mask_red = mask_red1 | mask_red2
+
+        current_red_pixels = int(mask_red.sum() / 255)
+        if self.prev_red_pixels is None:
+                self.prev_red_pixels = current_red_pixels
                 return
-            
-            img = self.image_data
-            
-            frame_height, frame_width, _ = img.shape
+        
+        change_in_red_pixel = current_red_pixels - self.prev_red_pixels
 
-            top = int (frame_height * 0.75)
-            bottom = int (frame_height * 0.95)
-            left = int (frame_width * 0.4)
-            right = frame_width
+        if change_in_red_pixel < 0 and self.red_count == 1:
+                self.cross_walk = True
+                        
+        if change_in_red_pixel > 4500 and  current_red_pixels > 27000:
+                self.red_count = 1
+                if self.cross_walk is True:
+                    self.red_count = 2
 
-            img_cropped = img[top:bottom, left:right]
+        #rospy.loginfo(f"{change_in_red_pixel}, {current_red_pixels}")
+        # img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
+        # self.pub_tape_cam.publish(img_a)
 
-            hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+        self.prev_red_pixels = current_red_pixels
 
-            lower_red1 = (0, 150, 230)
-            upper_red1 = (10, 255, 255)
+        lower_pink = (130, 100, 200)
+        upper_pink = (170, 255, 255)
 
-            lower_red2 = (170, 150, 230)
-            upper_red2 = (179, 255, 255)
+        mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
 
-            mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
-            mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
-
-            mask_red = mask_red1 | mask_red2
-
-            current_red_pixels = int(mask_red.sum() / 255)
-            if self.prev_red_pixels is None:
-                 self.prev_red_pixels = current_red_pixels
-                 return
-            
-            change_in_red_pixel = current_red_pixels - self.prev_red_pixels
-
-            if change_in_red_pixel < 0 and self.red_count == 1:
-                 self.cross_walk = True
-                            
-            if change_in_red_pixel > 4500 and  current_red_pixels > 27000:
-                 self.red_count = 1
-                 if self.cross_walk is True:
-                      self.red_count = 2
-
-            #rospy.loginfo(f"{change_in_red_pixel}, {current_red_pixels}")
-            img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
-            self.pub_tape_cam.publish(img_a)
-
-            self.prev_red_pixels = current_red_pixels
-
-            lower_pink = (130, 100, 200)
-            upper_pink = (170, 255, 255)
-
-            mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
-
-            current_pink_pixels = int(mask_pink.sum() / 255)
-            if self.prev_pink_pixels is None:
-                 self.prev_pink_pixels = current_pink_pixels
-                 return
-            
-            change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
-            # Just for now.
-            if change_in_pink_pixel < 0 and self.pink_count == 1:
-                 self.cross_walk = True
-                            
-            if change_in_pink_pixel > 4500 and  current_pink_pixels > 27000:
-                 self.pink_count = 1
-                 if self.cross_walk is True:
-                      self.pink_count = 2
+        current_pink_pixels = int(mask_pink.sum() / 255)
+        if self.prev_pink_pixels is None:
+                self.prev_pink_pixels = current_pink_pixels
+                return
+        
+        change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
+        # Just for now.
+        if change_in_pink_pixel < 0 and self.pink_count == 1:
+                self.cross_walk = True
+                        
+        if change_in_pink_pixel > 4500 and  current_pink_pixels > 27000:
+                self.pink_count = 1
+                if self.cross_walk is True:
+                    self.pink_count = 2
 
 
                  
