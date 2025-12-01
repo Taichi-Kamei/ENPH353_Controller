@@ -32,6 +32,7 @@ class Dirt_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Dirt Road state")
+        self.state_machine.prev_state = "Dirt_Road"
 
 
     def drive(self, img, speed):

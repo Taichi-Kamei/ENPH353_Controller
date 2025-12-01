@@ -27,6 +27,7 @@ class MountainState:
 
     def exit(self):
         rospy.loginfo("Exiting Mountain state")
+        self.state_machine.prev_state = "Mountain"
 
 
     def drive(self, img, speed):

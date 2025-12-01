@@ -26,6 +26,8 @@ class Off_RoadState:
         rospy.loginfo("Entering Off Road state")
         self.state_machine.move.linear.x  = 0
         self.state_machine.move.angular.z = 0
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+
 
 
     def run(self):
@@ -99,7 +101,7 @@ class Off_RoadState:
                 self.rough_perpendicular = True
             # self.perpendicular = False
         elif angle is not None and self.precise_perpendicular is False:
-
+            #TODO write code for state transition
             if abs(error) <= 2.7:
                 return "Mountain"
 
@@ -108,6 +110,7 @@ class Off_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Off Road state")
+        self.state_machine.prev_state = "Off_Road"
 
 
     def orient_tape(self, img):

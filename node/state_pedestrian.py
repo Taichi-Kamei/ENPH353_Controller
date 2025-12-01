@@ -71,4 +71,5 @@ class PedestrianState:
 
     def exit(self):
         rospy.loginfo("Exiting Pedestrian State")
+        self.state_machine.prev_state = "Pedestrian"
         #self.state_machine.pub_time.publish("team14,1234,-1,END")

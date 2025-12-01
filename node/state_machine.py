@@ -29,14 +29,13 @@ class StateMachine:
         self.bridge = CvBridge()
         self.move = Twist()
         self.image_data = None
-        self.lidar_data = None
+        self.board_contour = None, None
 
         self.red_count = 0
         self.pink_count = 0
         self.clue_board = 0
 
         self.prev_red_pixels = None
-        self.prev_pink_pixels = None
         
         self.cross_walk = False
         self.idle = False
@@ -67,6 +66,7 @@ class StateMachine:
            "Idle": Idle(self)
         }
 
+        self.prev_state = None
         self.current_state = self.states["Roundabout"]
         self.current_state.enter()
 
@@ -79,6 +79,7 @@ class StateMachine:
         try:
             self.image_data = self.bridge.imgmsg_to_cv2(data, "bgr8")
             self.detect_tape()
+            self.board_contour = self.detect_board_contour()
         except CvBridgeError as e:
             print(e)
 
@@ -137,6 +138,47 @@ class StateMachine:
                     self.red_count = 2
 
 
+    def detect_board_contour(self):
+         
+        if self.image_data is None:
+            return None, None
+        
+        hsv = cv2.cvtColor(self.image_data, cv2.COLOR_BGR2HSV)
+
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (105, 150, 190)
+        upper_blue = (120, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+
+        #TODO crop
+
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 4000]
+
+        if len(contours) >= 1:
+             contour = max(contours, key=cv2.contourArea(contours))
+             return contour, frame_width
+
+        
+        # M = cv2.moments(contour)
+        # if M["m00"] > 0:
+        #         cx = int(M["m10"] / M["m00"])
+        #         cy = int(M["m01"] / M["m00"])
+        #         error = (frame_width / 2) - cx
+                
+        #         if abs(error) <= 3:
+        #             return contour
+                
+        #         self.state_machine.move.linear.x  = 0
+        #         self.state_machine.move.angular.z = self.kp * error
+        #         self.state_machine.pub_vel.publish(self.state_machine.move)
+        
+        return None, frame_width
+
+
+
                  
     def run(self):
         rate = rospy.Rate(20)
@@ -149,6 +191,7 @@ class StateMachine:
             if self.next_state != self.current_state:
                 self.current_state.exit()
                 self.current_state = self.next_state
+                self.prev_state = self.current_state
                 self.current_state.enter()
             
             rate.sleep()

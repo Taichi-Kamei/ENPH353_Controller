@@ -31,6 +31,7 @@ class RoundaboutState:
 
     def exit(self):
         rospy.loginfo("Exiting Roundabout State")
+        self.state_machine.prev_state = "Roundabout"
     
 
     def drive(self, img, speed):

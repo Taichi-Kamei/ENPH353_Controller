@@ -29,6 +29,7 @@ class Post_CrosswalkState:
 
     def exit(self):
         rospy.loginfo("Exiting Post Crosswalk State")
+        self.state_machine.prev_state = "Post_Crosswalk"
     
 
     def drive(self, img, speed):

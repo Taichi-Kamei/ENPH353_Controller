@@ -23,9 +23,9 @@ class Paved_RoadState:
         if self.state_machine.red_count == 1:
             return "Pedestrian"
         
-        if self.state_machine.pink_count == 1:
-            return "Dirt_Road"
-        
+        if self.state_machine.board_contour is not None:
+            return "Clue_Detect"
+
         self.drive(img, self.linear_speed)
 
         return "Paved_Road"
@@ -33,6 +33,7 @@ class Paved_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Paved Road State")
+        self.state_machine.prev_state = "Paved_Road"
     
 
     def drive(self, img, speed):
@@ -97,51 +98,6 @@ class Paved_RoadState:
                     if abs(error) < 100:
                         self.state_machine.move.linear.x  = 0.8
                         self.state_machine.move.angular.z = 0
-
-                # slope = 1.16
-                # center_shift = 0
-
-                # if cy_difference > 60:
-                #     higher_cy = cy_left
-                #     slope = -1 * slope
-                #     center_shift = slope * higher_cy
-                # elif cy_difference < 60:
-                #     higher_cy = cy_right
-                #     center_shift = slope * higher_cy
-                
-                # error = center_shift + (frame_width / 2.0) - cx_center
-                # rospy.loginfo(f"xL: {xL}, {xL + wL}, {frame_width}")
-                # rospy.loginfo(f"xR: {xR}, {xR + wR}, {frame_width}")
-
-                # if abs(cx_left - cx_right) <= 400:
-                #     contour_data = contour_data[:1]
-
-                #old code:
-                #correction_factor = 1.0
-                # if cy_difference > 60:    
-                #     #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_R: {cy_right} / {frame_height}")
-                #     if cy_right < 0.2 * frame_height:
-                #         correction_factor = 1.5
-                #     elif cy_right < 0.4 * frame_height:
-                #         correction_factor = 1.3
-                #     elif cy_right > 0.7 * frame_height:
-                #         correction_factor = 1.1
-                # elif cy_difference < -60:
-                #     #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_L: {cy_left} / {frame_height}")
-                #     if cy_left < 0.2 * frame_height:
-                #         correction_factor = 0.5
-                #     elif cy_left < 0.4 * frame_height:
-                #         correction_factor = 0.7
-                #     elif cy_left > 0.7 * frame_height:
-                #         correction_factor = 0.9
-                # error = (frame_width / 2.0) - (lane_center * correction_factor)
-                #rospy.loginfo(abs(cx_left - cx_right))
-                # Was inside else statement!!
-                #rospy.loginfo(f"error: {error} angular: {self.kp * error}")
-                    # if abs(error) <= 25:
-                    #     self.state_machine.move.linear.x  = 2
-                    #     self.state_machine.move.angular.z = 0
-                    # else:
 
         elif len(contour_data) == 1:
 
