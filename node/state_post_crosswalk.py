@@ -2,35 +2,33 @@ import cv2
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
 
-class RoundaboutState:
+class Post_CrosswalkState:
 
     def __init__(self, state_machine):
         self.state_machine = state_machine
         self.bridge = CvBridge()
-        self.threshold = 160
-        self.linear_speed = 0.95
+        self.threshold = 160    
+        self.linear_speed = 1.2
         self.kp = 0.05
-
-        self.prev_pink_pixels = None
 
 
     def enter(self):
-        rospy.loginfo("Entering Roundabout State")
+        rospy.loginfo("Entering Post Crosswalk State")
 
 
     def run(self):
         
         img = self.state_machine.image_data
-        
-        if self.detect_pink(img):
-            return "Dirt_Road"
-
+    
         self.drive(img, self.linear_speed)
-        return "Roundabout"
+
+        #TODO add clue detection section if statement
+
+        return "Post_Crosswalk"
 
 
     def exit(self):
-        rospy.loginfo("Exiting Roundabout State")
+        rospy.loginfo("Exiting Post Crosswalk State")
     
 
     def drive(self, img, speed):
@@ -93,7 +91,53 @@ class RoundaboutState:
                     error = center_shift + (frame_width / 2.0) - cx_center
                     if abs(error) < 100:
                         self.state_machine.move.linear.x  = 0.8
-                        self.state_machine.move.angular.z = 0.1
+                        self.state_machine.move.angular.z = 0
+
+                # slope = 1.16
+                # center_shift = 0
+
+                # if cy_difference > 60:
+                #     higher_cy = cy_left
+                #     slope = -1 * slope
+                #     center_shift = slope * higher_cy
+                # elif cy_difference < 60:
+                #     higher_cy = cy_right
+                #     center_shift = slope * higher_cy
+                
+                # error = center_shift + (frame_width / 2.0) - cx_center
+                # rospy.loginfo(f"xL: {xL}, {xL + wL}, {frame_width}")
+                # rospy.loginfo(f"xR: {xR}, {xR + wR}, {frame_width}")
+
+                # if abs(cx_left - cx_right) <= 400:
+                #     contour_data = contour_data[:1]
+
+                #old code:
+                #correction_factor = 1.0
+                # if cy_difference > 60:    
+                #     #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_R: {cy_right} / {frame_height}")
+                #     if cy_right < 0.2 * frame_height:
+                #         correction_factor = 1.5
+                #     elif cy_right < 0.4 * frame_height:
+                #         correction_factor = 1.3
+                #     elif cy_right > 0.7 * frame_height:
+                #         correction_factor = 1.1
+                # elif cy_difference < -60:
+                #     #rospy.loginfo(f"center: {lane_center}/{frame_width / 2} diff: {cy_difference} Cy_L: {cy_left} / {frame_height}")
+                #     if cy_left < 0.2 * frame_height:
+                #         correction_factor = 0.5
+                #     elif cy_left < 0.4 * frame_height:
+                #         correction_factor = 0.7
+                #     elif cy_left > 0.7 * frame_height:
+                #         correction_factor = 0.9
+                # error = (frame_width / 2.0) - (lane_center * correction_factor)
+                #rospy.loginfo(abs(cx_left - cx_right))
+                # Was inside else statement!!
+                #rospy.loginfo(f"error: {error} angular: {self.kp * error}")
+                    # if abs(error) <= 25:
+                    #     self.state_machine.move.linear.x  = 2
+                    #     self.state_machine.move.angular.z = 0
+                    # else:
+
         elif len(contour_data) == 1:
 
             M = cv2.moments(contour_data[0][1])
@@ -104,7 +148,8 @@ class RoundaboutState:
                 cy = int(M["m01"] / M["m00"])
 
                 if (y + h == frame_height and y <= 0.7 * frame_height and (x <= 0.2 * frame_width or x >= 0.75 * frame_width)) or (x == 0 or x + w == frame_width):
-                    slope = 2.3
+
+                    slope = 2.7
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -125,33 +170,3 @@ class RoundaboutState:
         self.state_machine.pub_processed_cam.publish(img_a)
 
         self.state_machine.pub_vel.publish(self.state_machine.move)
-
-
-    def detect_pink(self, img):
-        if img is None:
-            return
-        
-        frame_height, frame_width, _ = img.shape
-
-        top = int (frame_height * 0.75)
-        bottom = int (frame_height * 0.95)
-        left = int (frame_width * 0.4)
-        right = frame_width
-
-        img_cropped = img[top:bottom, left:right]
-        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
-
-        lower_pink = (130, 100, 200)
-        upper_pink = (170, 255, 255)
-
-        mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
-
-        current_pink_pixels = int(mask_pink.sum() / 255)
-        if self.prev_pink_pixels is None:
-                self.prev_pink_pixels = current_pink_pixels
-                return False
-        
-        change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
-                        
-        if change_in_pink_pixel > 4500 and  current_pink_pixels > 25000:
-            return True
