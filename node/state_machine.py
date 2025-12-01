@@ -65,7 +65,7 @@ class StateMachine:
            "Idle": Idle(self)
         }
 
-        self.current_state = self.states["Off_Road"]
+        self.current_state = self.states["Roundabout"]
         self.current_state.enter()
 
 
@@ -138,27 +138,27 @@ class StateMachine:
         # img_a = self.bridge.cv2_to_imgmsg(mask_red, encoding="mono8")
         # self.pub_tape_cam.publish(img_a)
 
-        self.prev_red_pixels = current_red_pixels
+        # self.prev_red_pixels = current_red_pixels
 
-        lower_pink = (130, 100, 200)
-        upper_pink = (170, 255, 255)
+        # lower_pink = (130, 100, 200)
+        # upper_pink = (170, 255, 255)
 
-        mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
+        # mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
 
-        current_pink_pixels = int(mask_pink.sum() / 255)
-        if self.prev_pink_pixels is None:
-                self.prev_pink_pixels = current_pink_pixels
-                return
+        # current_pink_pixels = int(mask_pink.sum() / 255)
+        # if self.prev_pink_pixels is None:
+        #         self.prev_pink_pixels = current_pink_pixels
+        #         return
         
-        change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
-        # Just for now.
-        if change_in_pink_pixel < 0 and self.pink_count == 1:
-                self.cross_walk = True
+        # change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
+        # # Just for now.
+        # if change_in_pink_pixel < 0 and self.pink_count == 1:
+        #         self.cross_walk = True
                         
-        if change_in_pink_pixel > 4500 and  current_pink_pixels > 27000:
-                self.pink_count = 1
-                if self.cross_walk is True:
-                    self.pink_count = 2
+        # if change_in_pink_pixel > 4500 and  current_pink_pixels > 27000:
+        #         self.pink_count = 1
+        #         if self.cross_walk is True:
+        #             self.pink_count = 2
 
 
                  

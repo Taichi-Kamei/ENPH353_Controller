@@ -59,7 +59,6 @@ class TruckState:
                 rospy.loginfo("Truck detected")
 
             self.prev_image = self.current_image
-
             return "Truck"
 
     def exit(self):
@@ -67,5 +66,4 @@ class TruckState:
         self.state_machine.move.linear.x = 0
         self.state_machine.move.angular.z = 2
         self.state_machine.pub_vel.publish(self.state_machine.move)
-
         rospy.sleep(0.3)
