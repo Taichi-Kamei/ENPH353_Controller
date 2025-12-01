@@ -1,0 +1,22 @@
+colors:
+  blue:
+    H_max: 160
+    H_min: 82
+    S_max: 255
+    S_min: 124
+    V_max: 255
+    V_min: 0
+  gray:
+    H_max: 180
+    H_min: 0
+    S_max: 64
+    S_min: 0
+    V_max: 227
+    V_min: 26
+letters:
+  cnn_input_size: 100
+  letter_color_mode: blue
+  min_letter_area: 50
+processing:
+  MIN_SIGN_AREA: 11000
+  contour_epsilon: 0.02
