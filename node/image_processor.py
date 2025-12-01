@@ -159,7 +159,7 @@ class ImageProcessor:
         
     def extract_letters(self, plate_image, letter_params):
         """Extract letters with row detection for multiple lines of text"""
-        plate_display = plate_image.copy()
+        # plate_display = plate_image.copy()
         hsv_plate = cv2.cvtColor(plate_image, cv2.COLOR_BGR2HSV)
         
         # Get letter color range
@@ -168,8 +168,12 @@ class ImageProcessor:
         
         # Clean mask
         kernel = np.ones((2,2), np.uint8)
-        letter_mask_clean = cv2.morphologyEx(letter_mask, cv2.MORPH_OPEN, kernel)
+        # letter_mask_clean = cv2.morphologyEx(letter_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+        letter_mask_clean = cv2.morphologyEx(letter_mask, cv2.MORPH_OPEN, kernel, iterations=1)
         
+        plate_image = cv2.cvtColor(letter_mask_clean, cv2.COLOR_GRAY2BGR)
+        plate_display = cv2.cvtColor(letter_mask_clean, cv2.COLOR_GRAY2BGR)
+
         # Find all contours
         letter_contours, _ = cv2.findContours(letter_mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
@@ -406,26 +410,40 @@ class ImageProcessor:
         }
         return ranges.get(color_mode, ranges['blue'])
         
-    def prepare_for_cnn(self, letter_img, cnn_width=150, cnn_height=200):
-        """Prepare letter image for CNN input - hardcoded to 150x200"""
+    def prepare_for_cnn(self, letter_img, cnn_width=100, cnn_height=150):
+        """Prepare letter image for CNN input"""
         if len(letter_img.shape) == 3:
             gray = cv2.cvtColor(letter_img, cv2.COLOR_BGR2GRAY)
         else:
             gray = letter_img
         
-        # Always resize to 150x200
+        # Always resize
         resized = cv2.resize(gray, (cnn_width, cnn_height))
         normalized = resized.astype(np.float32) / 255.0
         
         return normalized
+
+        # hsv_plate = cv2.cvtColor(letter_img, cv2.COLOR_BGR2HSV)
         
-    def create_letter_display_image(self, cnn_img, cnn_width=150, cnn_height=200):
+        # # Get letter color range
+        # letter_color = self.get_letter_color_range('blue')
+        # letter_mask = cv2.inRange(hsv_plate, letter_color['lower'], letter_color['upper'])
+
+        # # Clean mask
+        # kernel = np.ones((2,2), np.uint8)
+        # letter_mask_clean = cv2.morphologyEx(letter_mask, cv2.MORPH_OPEN, kernel)
+
+        # resized = cv2.resize(letter_mask_clean, (cnn_width, cnn_height))
+
+        # return resized
+        
+    def create_letter_display_image(self, cnn_img, cnn_width=100, cnn_height=150):
         """Create display image for individual letter"""
         display_img = (cnn_img * 255).astype(np.uint8)
         display_img = cv2.cvtColor(display_img, cv2.COLOR_GRAY2BGR)
         
         # Add border and label
-        cv2.rectangle(display_img, (0, 0), (cnn_width-1, cnn_height-1), (0, 255, 0), 1)
+        # cv2.rectangle(display_img, (0, 0), (cnn_width-1, cnn_height-1), (0, 255, 0), 1)
         
         return display_img
         
