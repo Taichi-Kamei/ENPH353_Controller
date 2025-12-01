@@ -14,7 +14,7 @@ from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from sensor_msgs.msg import Image
 from std_srvs.srv import Empty
-
+from geometry_msgs.msg import Twist
 
 ##
 # Backend for the "./Controller_GUI.ui".
@@ -45,6 +45,10 @@ class Controller_App(QtWidgets.QMainWindow):
         self.reset_robot_position_button.clicked.connect(self.SLOT_reset_robot_position)
         self.launch_score_tracker_button.clicked.connect(self.SLOT_launch_score_tracker_script)
         self.launch_state_machine_button.clicked.connect(self.SLOT_launch_state_machine_script)
+        self.terminate_button.clicked.connect(self.SLOT_terminate_state_machine_script)
+
+        self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
+        self.move = Twist()
 
 
         self.sub_raw_view = rospy.Subscriber("/B1/rrbot/camera1/image_raw",
@@ -235,6 +239,24 @@ class Controller_App(QtWidgets.QMainWindow):
             self.state_machine_process = subprocess.Popen(["./state_machine.py"])
             rospy.loginfo("Restarting State Machine")
 
+    ##
+    # Terminates the ./state_machine.py without relaunch.
+    # 
+    # @param self The object pointer
+    def SLOT_terminate_state_machine_script(self):
+        if self.state_machine_process:
+            for _ in range(5):
+                self.move.linear.x = 0
+                self.move.angular.z = 0
+                self.pub_vel.publish(self.move)
+                rospy.sleep(0.02)
+            rospy.loginfo("stopped robot")
+
+            self.state_machine_process.terminate()
+            self.state_machine_process.kill()
+            rospy.loginfo("Terminated State Machine")
+
+
 
     ## 
     # Closes all the background processes (score_tracker.py and state_machine.py) when controller_GUI.py is terminated 
@@ -258,7 +280,6 @@ class Controller_App(QtWidgets.QMainWindow):
                 pass
 
         event.accept()
-
 
 
 if __name__ == "__main__":

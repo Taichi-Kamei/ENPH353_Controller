@@ -17,16 +17,18 @@ class PedestrianState:
         rospy.loginfo("Entering Pedestrian state")
         
         self.state_machine.move.linear.x = 0
+        self.state_machine.move.angular.z = 2
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.2)
+        self.state_machine.move.linear.x = 0
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)
         
 
     def run(self):
         
-        
-        
         if self.state_machine.red_count == 2:
-            return "Drive_Green"
+            return "Paved_Road"
         
         self.current_image = self.state_machine.image_data
         frame_height, frame_width, _ = self.current_image.shape
@@ -69,4 +71,5 @@ class PedestrianState:
 
     def exit(self):
         rospy.loginfo("Exiting Pedestrian State")
+        self.state_machine.prev_state = "Pedestrian"
         #self.state_machine.pub_time.publish("team14,1234,-1,END")
