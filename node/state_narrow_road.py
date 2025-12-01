@@ -24,7 +24,7 @@ class Narrow_RoadState:
 
         img = self.state_machine.image_data
 
-        if self.state_machine.pink_count == 2:
+        if self.detect_pink(img):
             return "Off_Road"
 
         self.drive(img, self.linear_speed)
@@ -143,4 +143,34 @@ class Narrow_RoadState:
         self.state_machine.pub_processed_cam.publish(img_a)
 
         self.state_machine.pub_vel.publish(self.state_machine.move)
+
+
+    def detect_pink(self, img):
+        if img is None:
+            return
+        
+        frame_height, frame_width, _ = img.shape
+
+        top = int (frame_height * 0.75)
+        bottom = int (frame_height * 0.95)
+        left = int (frame_width * 0.4)
+        right = frame_width
+
+        img_cropped = img[top:bottom, left:right]
+        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+        lower_pink = (130, 100, 200)
+        upper_pink = (170, 255, 255)
+
+        mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
+
+        current_pink_pixels = int(mask_pink.sum() / 255)
+        if self.prev_pink_pixels is None:
+                self.prev_pink_pixels = current_pink_pixels
+                return False
+        
+        change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
+                        
+        if change_in_pink_pixel > 4500 and  current_pink_pixels > 25000:
+            return True
 

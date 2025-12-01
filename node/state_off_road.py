@@ -110,33 +110,6 @@ class Off_RoadState:
         rospy.loginfo("Exiting Off Road state")
 
 
-    def drive(self, cnt, frame_width, speed):
-        
-        if cnt is None:
-            return
-
-        M = cv2.moments(cnt)
-
-        if M["m00"] > 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-
-            # The center of the lane shifts significantly from the center of the frame during steep curve
-            # I did "Required shift from frame center proportional to Cy" and it worked well
-            # (slope value was experimentally chosen)
-            # slope = 2.1
-            # if cx <= frame_width * 0.5:
-            #     slope = -1 * slope
-
-            # center_shift = slope * cy
-            error = (frame_width / 2) - cx
-
-            self.state_machine.move.linear.x  = self.linear_speed
-            self.state_machine.move.angular.z = self.kp * error
-   
-        self.state_machine.pub_vel.publish(self.state_machine.move)
-
-
     def orient_tape(self, img):
 
         if img is None:
