@@ -18,5 +18,5 @@ letters:
   letter_color_mode: blue
   min_letter_area: 50
 processing:
-  MIN_SIGN_AREA: 5000
+  MIN_SIGN_AREA: 11000
   contour_epsilon: 0.02

@@ -5,6 +5,8 @@ import numpy as np
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
+from ocr import OCR
+
 class ImageProcessor:
     def __init__(self, parameter_manager):
         self.parameter_manager = parameter_manager
@@ -13,6 +15,8 @@ class ImageProcessor:
         self.camera_topic = None
         self.image_sub = None
         self.last_contours = []
+        self.ocr_model = OCR('conv_model_dropout.tflite')
+
         
     def setup_camera(self):
         """Setup ROS camera subscriber"""
@@ -93,6 +97,24 @@ class ImageProcessor:
             if plate_image is not None:
                 letter_boxes_display, individual_letters = self.extract_letters(
                     plate_image, letter_params)
+                
+        if hasattr(self, 'ocr_model') and self.ocr_model and individual_letters:
+            for letter_data in individual_letters:
+                if 'original' in letter_data:
+                    # Get prediction
+                    char, confidence = self.ocr_model.predict(letter_data['cnn_ready'])
+                    
+                    # Add to letter data
+                    letter_data['prediction'] = char
+                    letter_data['confidence'] = confidence
+                    
+                    # Update display image with prediction text
+                    if 'display_image' in letter_data:
+                        img = letter_data['display_image'].copy()
+                        h, w = img.shape[:2]
+                        cv2.putText(img, f"{char}", (5, h-5), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+                        letter_data['display_image'] = img
         
         return (original, blue_mask_display, sign_image, plate_image, 
                 letter_boxes_display, individual_letters)
@@ -369,7 +391,7 @@ class ImageProcessor:
     def get_letter_color_range(self, color_mode):
         """Get HSV range for letter color"""
         ranges = {
-            'blue': {'lower': np.array([80, 100, 0]), 'upper': np.array([150, 255, 255])},
+            'blue': {'lower': np.array([100, 100, 0]), 'upper': np.array([125, 255, 255])},
             'black': {'lower': np.array([0, 0, 0]), 'upper': np.array([180, 255, 50])},
             'white': {'lower': np.array([0, 0, 200]), 'upper': np.array([180, 50, 255])}
         }
