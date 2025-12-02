@@ -7,7 +7,7 @@ class Clue_DetectState:
         self.state_machine = state_machine
 
         self.linear_speed = 1
-        self.kp = 0.03
+        self.kp = 0.02
         
         self.aligned = False
         self.clue_sent = False
@@ -54,8 +54,8 @@ class Clue_DetectState:
 
         frame_height, frame_width,_ = hsv.shape
 
-        lower_blue = (105, 150, 50)
-        upper_blue = (120, 255, 150)
+        lower_blue = (80, 125, 0)
+        upper_blue = (160, 255, 255)
         mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
 
         contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
@@ -75,18 +75,21 @@ class Clue_DetectState:
 
 
                 if self.aligned and self.clue_sent:
-                    shift = 80
+                    
+                    slope = 0.4
+
+                    shift = slope * cy / 2
                     if self.board_position_left:
                         shift = -shift
 
-                    error = (frame_width / 2) - (cx + shift)
+                    error =  (frame_width / 2) - (cx + shift)
 
                     self.state_machine.move.linear.x  = 0
                     self.state_machine.move.angular.z = -self.kp * error
                     self.state_machine.pub_vel.publish(self.state_machine.move)
-                    rospy.loginfo(error)
+                    rospy.loginfo(f"shift: {shift}, error: {abs(error)}")
                 
-                    if abs(error) >= 70:
+                    if abs(error) >= 80 and abs(error) <= 120:
                         
                         return self.transition_from_clue[
                             (self.state_machine.str_prev_prev_state, self.state_machine.str_prev_state)]
@@ -105,14 +108,13 @@ class Clue_DetectState:
                 else:
                     
                     error = (frame_width / 2) - cx
-                    rospy.loginfo(error)
-                    
-                    self.state_machine.move.linear.x  = 0
-                    self.state_machine.move.angular.z = self.kp * error
-                    self.state_machine.pub_vel.publish(self.state_machine.move)
-                    
+
                     if abs(error) <= 20:
                         self.aligned = True
+                    else:
+                        self.state_machine.move.linear.x  = 0
+                        self.state_machine.move.angular.z = self.kp * error
+                        self.state_machine.pub_vel.publish(self.state_machine.move)
                             
                     
         return "Clue_Detect"

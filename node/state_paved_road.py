@@ -25,7 +25,6 @@ class Paved_RoadState:
             return "Pedestrian"
         
         if self.state_machine.board_contour is not None:
-            rospy.loginfo("hey")
             return "Clue_Detect"
         
         self.drive(img, self.linear_speed)

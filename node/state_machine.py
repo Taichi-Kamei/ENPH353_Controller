@@ -144,12 +144,12 @@ class StateMachine:
         change_in_red_pixel = current_red_pixels - self.prev_red_pixels
 
         if change_in_red_pixel < 0 and self.red_count == 1:
-                rospy.loginfo("wow")
+                # rospy.loginfo("wow")
                 self.cross_walk = True
         
-        #rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
+        # rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
                         
-        if change_in_red_pixel > 4500 and  current_red_pixels > 18000:
+        if change_in_red_pixel > 4300 and  current_red_pixels > 10000:
                 self.red_count = 1
                 if self.cross_walk is True:
                     self.red_count = 2
@@ -166,16 +166,11 @@ class StateMachine:
 
         frame_height, frame_width,_ = hsv.shape
 
-        lower_blue = (105, 150, 50)
-        upper_blue = (120, 255, 150)
+        lower_blue = (80, 125, 0)
+        upper_blue = (160, 255, 255)
         mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
-
-        #TODO crop
-
         contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
-        
-        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 20000]
 
         with_contour = cv2.drawContours(self.image_data, contours, -1, (0,255,0), 5)
         img_a = self.bridge.cv2_to_imgmsg(with_contour, encoding="bgr8")
@@ -183,10 +178,11 @@ class StateMachine:
 
         if len(contours) >= 1:
             contour = max(contours, key=cv2.contourArea)
-            
-            return contour, frame_width
+            cnt_area = cv2.contourArea(contour)
+            threshold = 19000
 
-            
+            if cnt_area > threshold and cnt_area < threshold + 2000:
+                return contour, frame_width
         
         return None, frame_width
 

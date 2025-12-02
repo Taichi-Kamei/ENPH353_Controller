@@ -19,7 +19,7 @@ class PedestrianState:
         self.state_machine.move.linear.x = 0
         self.state_machine.move.angular.z = 1
         self.state_machine.pub_vel.publish(self.state_machine.move)
-        rospy.sleep(0.5)
+        rospy.sleep(0.2)
         self.state_machine.move.linear.x = 0
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)
@@ -28,7 +28,7 @@ class PedestrianState:
     def run(self):
         
         if self.state_machine.red_count == 2:
-            return "Paved_Road"
+            return "Post_Crosswalk"
         
         self.current_image = self.state_machine.image_data
         frame_height, frame_width, _ = self.current_image.shape
