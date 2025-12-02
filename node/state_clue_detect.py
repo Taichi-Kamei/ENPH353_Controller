@@ -52,8 +52,8 @@ class Clue_DetectState:
 
         frame_height, frame_width,_ = hsv.shape
 
-        lower_blue = (105, 150, 50)
-        upper_blue = (120, 255, 150)
+        lower_blue = (80, 125, 0)
+        upper_blue = (160, 255, 255)
         mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
 
         contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
