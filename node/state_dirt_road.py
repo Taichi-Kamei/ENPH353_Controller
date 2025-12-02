@@ -173,6 +173,7 @@ class Dirt_RoadState:
             cv2.rectangle(img_cropped, (x, y), (x + w, y + h), (0, 255, 0), 3)
 
         with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
+        
         img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
         self.state_machine.pub_processed_cam.publish(img_a)
 

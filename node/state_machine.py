@@ -28,6 +28,8 @@ class StateMachine:
     def __init__(self):
         self.bridge = CvBridge()
         self.move = Twist()
+        #self.clue_detect = clue detect class(self)
+
         self.image_data = None
         self.board_contour = None, None
 
@@ -50,6 +52,10 @@ class StateMachine:
 
         self.pub_tape_cam = rospy.Publisher("/tape_img", Image, queue_size = 1)
         self.pub_processed_cam = rospy.Publisher("/processed_img", Image, queue_size = 1)
+
+        self.pub_board_mask_cam = rospy.Publisher("/board_mask_img", Image, queue_size = 1)
+        self.pub_flattened_plate_cam = rospy.Publisher("/flattened_plate_img", Image, queue_size = 1)
+        self.pub_letters_cam = rospy.Publisher("/letters_img", Image, queue_size = 1)
 
 
         self.states = {
