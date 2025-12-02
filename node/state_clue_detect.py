@@ -115,8 +115,7 @@ class Clue_DetectState:
                         self.state_machine.move.linear.x  = 0
                         self.state_machine.move.angular.z = self.kp * error
                         self.state_machine.pub_vel.publish(self.state_machine.move)
-                            
-                    
+                                      
         return "Clue_Detect"
 
 
