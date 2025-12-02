@@ -1,6 +1,10 @@
 import cv2
 import rospy
 
+from cv_bridge import CvBridge, CvBridgeError
+
+from clue_detector import ClueDetector
+
 class Clue_DetectState:
 
     def __init__(self, state_machine):
@@ -23,6 +27,9 @@ class Clue_DetectState:
            ("Narrow_Road",    "Off_Road")      : "Mountain",
            ("Clue_Detect",     "Mountain")     : "Idle",
         }
+
+        self.bridge = CvBridge()
+        self.clue_detector = ClueDetector()
 
     def enter(self):
         rospy.loginfo("Entering Clue Detect state")
@@ -92,8 +99,7 @@ class Clue_DetectState:
                     self.state_machine.pub_vel.publish(self.state_machine.move)
                     
                     if abs(error) <= 20:
-                        self.aligned = True
-                            
+                        self.aligned = True  
                     
         return "Clue_Detect"
 
@@ -107,6 +113,18 @@ class Clue_DetectState:
 
     
     def clue_detect(self):
-         
-         #TODO
-         pass
+        id, value = self.clue_detector.detect_clue(self.state_machine.image_data)
+
+        board_mask = self.bridge.cv2_to_imgmsg(self.clue_detector.get_board_mask(), encoding="bgr8")
+        self.state_machine.pub_board_mask_cam.publish(board_mask)
+
+        plate = self.bridge.cv2_to_imgmsg(self.clue_detector.get_plate(), encoding="bgr8")
+        self.state_machine.pub_flattened_plate_cam.publish(plate)
+
+        letter_mask = self.bridge.cv2_to_imgmsg(self.clue_detector.get_letter_mask(), encoding="bgr8")
+        self.state_machine.pub_letters_cam.publish(letter_mask)
+
+        
+        # self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
+        print(f"Team14,password,{id},{value}")
+        # self.clue_sent = True
