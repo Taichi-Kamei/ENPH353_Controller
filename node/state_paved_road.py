@@ -33,7 +33,6 @@ class Paved_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Paved Road State")
-        self.state_machine.prev_state = "Paved_Road"
     
 
     def drive(self, img, speed):

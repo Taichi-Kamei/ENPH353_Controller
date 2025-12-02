@@ -21,4 +21,3 @@ class Idle:
     
     def exit(self):
         rospy.loginfo("Exiting Idle")
-        self.state_machine.prev_state = "Idle"

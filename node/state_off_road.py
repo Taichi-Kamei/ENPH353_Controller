@@ -110,7 +110,6 @@ class Off_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Off Road state")
-        self.state_machine.prev_state = "Off_Road"
 
 
     def orient_tape(self, img):

@@ -66,24 +66,12 @@ class StateMachine:
            "Idle": Idle(self)
         }
 
-        self.transition_states = {
-           "Clue_Detect": "Clue_DetectState(self)",
-           "Paved_Road": "Paved_RoadState(self)",
-           "Dirt_Road": "Narrow_Road",
-           "Narrow_Road": "Off_Road",
-           "Pedestrian": "Post_Crosswalk",
-           "Post_Crosswalk": "Paved_Road",
-           "Roundabout": "Dirt_Road",
-           "Off_Road": "Mountain",
-           "Mountain": "Idle",
-           "Truck": "Roundabout",
-           "Idle": "Idle"
-        }
-
         
         self.current_state = self.states["Roundabout"]
         #initialization
-        self.prev_state = "Paved_Road"
+        self.str_current_state = "Paved_Road"
+        self.str_prev_prev_state = "Paved_Road"
+        self.str_prev_state = "Paved_Road"
         self.current_state.enter()
 
 
@@ -176,24 +164,8 @@ class StateMachine:
         if len(contours) >= 1:
              contour = max(contours, key=cv2.contourArea(contours))
              return contour, frame_width
-
-        
-        # M = cv2.moments(contour)
-        # if M["m00"] > 0:
-        #         cx = int(M["m10"] / M["m00"])
-        #         cy = int(M["m01"] / M["m00"])
-        #         error = (frame_width / 2) - cx
-                
-        #         if abs(error) <= 3:
-        #             return contour
-                
-        #         self.state_machine.move.linear.x  = 0
-        #         self.state_machine.move.angular.z = self.kp * error
-        #         self.state_machine.pub_vel.publish(self.state_machine.move)
         
         return None, frame_width
-
-
 
                  
     def run(self):
@@ -207,7 +179,14 @@ class StateMachine:
             if self.next_state != self.current_state:
                 self.current_state.exit()
                 self.current_state = self.next_state
-                self.prev_state = self.current_state
+
+                #For clue detection transition
+                for key, state in self.states.items():
+                    if state == self.current_state:
+                        self.str_current_state = key
+                self.str_prev_prev_state = self.str_prev_state
+                self.str_prev_state = self.str_current_state
+
                 self.current_state.enter()
             
             rate.sleep()
