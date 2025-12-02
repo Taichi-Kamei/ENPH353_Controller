@@ -17,9 +17,9 @@ class PedestrianState:
         rospy.loginfo("Entering Pedestrian state")
         
         self.state_machine.move.linear.x = 0
-        self.state_machine.move.angular.z = 2
+        self.state_machine.move.angular.z = 1
         self.state_machine.pub_vel.publish(self.state_machine.move)
-        rospy.sleep(0.2)
+        rospy.sleep(0.5)
         self.state_machine.move.linear.x = 0
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)
@@ -52,7 +52,7 @@ class PedestrianState:
         _, thresh = cv2.threshold(gray_img, 100, 255, cv2.THRESH_BINARY)
 
         if thresh.sum() == 0:
-            self.state_machine.move.linear.x = 2
+            self.state_machine.move.linear.x = 1.5
             self.state_machine.move.angular.z = 0
 
             self.state_machine.pub_vel.publish(self.state_machine.move)

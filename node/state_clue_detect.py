@@ -16,6 +16,8 @@ class Clue_DetectState:
         self.aligned = False
         self.clue_sent = False
 
+        self.board_position_left = True
+
         #Kinda chopped since some prev_prev_state is Clue_Detect state and some aren't but deal with it
         self.transition_from_clue = {
            ("Paved_Road",     "Paved_Road")    : "Paved_Road",
@@ -44,6 +46,13 @@ class Clue_DetectState:
 
     def run(self):
 
+        M_initial = cv2.moments(self.state_machine.board_contour)
+        if M_initial["m00"] > 0:
+                cx = int(M_initial["m10"] / M_initial["m00"])
+
+                if cx > 0.5 * self.state_machine.frame_width_board:
+                    self.board_position_left = False
+
         if self.state_machine.image_data is None:
 
             return "Clue_Detect"
@@ -70,19 +79,27 @@ class Clue_DetectState:
             if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
-                error = (frame_width / 2) - cx
+
 
                 if self.aligned and self.clue_sent:
+                    shift = 80
+                    if self.board_position_left:
+                        shift = -shift
+
+                    error = (frame_width / 2) - (cx + shift)
+
                     self.state_machine.move.linear.x  = 0
                     self.state_machine.move.angular.z = -self.kp * error
                     self.state_machine.pub_vel.publish(self.state_machine.move)
                     rospy.loginfo(error)
                 
-                    if abs(error) >= 100:
+                    if abs(error) >= 70:
+                        
                         return self.transition_from_clue[
                             (self.state_machine.str_prev_prev_state, self.state_machine.str_prev_state)]
                     
                 elif self.aligned:
+                    
                     self.state_machine.move.linear.x  = 0.5
                     self.state_machine.move.angular.z = 0
                     self.state_machine.pub_vel.publish(self.state_machine.move)
@@ -91,7 +108,10 @@ class Clue_DetectState:
                     self.state_machine.move.angular.z = 0
                     self.state_machine.pub_vel.publish(self.state_machine.move)
                     self.clue_detect()
+
                 else:
+                    
+                    error = (frame_width / 2) - cx
                     rospy.loginfo(error)
                     
                     self.state_machine.move.linear.x  = 0
