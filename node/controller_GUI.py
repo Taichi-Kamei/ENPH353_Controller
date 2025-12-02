@@ -13,11 +13,12 @@ from cv_bridge import CvBridge, CvBridgeError
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from std_srvs.srv import Empty
 from geometry_msgs.msg import Twist
 
 ##
-# Backend for the "./Controller_GUI.ui".
+# Backend for the "./Controller+CNN_GUI.ui".
 # Allows control over the Gazebo simulation world, 
 # launching scripts for running the score tracker and the state machine,
 # and viewing robot's raw/contour/clue_detection camera view
@@ -29,36 +30,58 @@ class Controller_App(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(Controller_App, self).__init__()
-        loadUi("./Controller_GUI.ui", self)
+        loadUi("./Controller+CNN_GUI.ui", self)
         
         self.score_tracker_process = None
         self.state_machine_process = None
 
         self.bridge = CvBridge()
+
         self.raw_image = None
         self.contour_image = None
-        self.clue_detection_image = None
         self.tape_image = None
-        
+
+        self.mask_image = None
+        self.plate_image = None
+        self.letters_image = None
+
+        # ComboBoxes for the view type
+        self.drive_view_type_button.currentIndexChanged.connect(self.change_drive_view_type)
+        self.CNN_view_type_button.currentIndexChanged.connect(self.change_CNN_view_type)
+
+        # Sim paue/unpause and robot position 
         self.sim_time_button.clicked.connect(self.SLOT_sim_time)
-        self.view_type_button.currentIndexChanged.connect(self.change_view_type)
         self.reset_robot_position_button.clicked.connect(self.SLOT_reset_robot_position)
+        
+        # Score tracker related
         self.launch_score_tracker_button.clicked.connect(self.SLOT_launch_score_tracker_script)
+        self.stop_timer_button.clicked.connect(self.SLOT_stop_timer)
+
+        # Main python script related
         self.launch_state_machine_button.clicked.connect(self.SLOT_launch_state_machine_script)
         self.terminate_button.clicked.connect(self.SLOT_terminate_state_machine_script)
+        
 
+        self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
         self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
         self.move = Twist()
 
-
+        # Subscribers for the driving and raw feed camera views
         self.sub_raw_view = rospy.Subscriber("/B1/rrbot/camera1/image_raw",
                                             Image, self.raw_image_cb, queue_size=1)
         self.sub_contour_view = rospy.Subscriber("/processed_img",
                                             Image, self.contour_image_cb, queue_size= 1)
         self.sub_tape_view = rospy.Subscriber("/tape_img",
                                             Image, self.tape_image_cb, queue_size= 1)
-        # TODO Add subscriber for clue detection
-        #self.sub_clue_view = rospy.Subscriber("/processed_img", Image, self.clue_detection_image_cb, queue_size= 1)
+        
+        # Subscribers for the CNN debugging views
+        self.sub_board_mask_view = rospy.Subscriber("/board_mask_img",
+                                            Image, self.board_mask_cb, queue_size= 1)
+        self.sub_flattened_plate_view = rospy.Subscriber("/flattened_plate_img",
+                                            Image, self.flattened_plate_cb, queue_size= 1)
+        self.sub_letters_view = rospy.Subscriber("/letters_img",
+                                            Image, self.letters_cb, queue_size= 1)
+
 
         self.sim_paused = False
         self.pause_icon = QtGui.QIcon("icons/icons8-pause-30.png")
@@ -66,11 +89,6 @@ class Controller_App(QtWidgets.QMainWindow):
         self.sim_time_button.setIcon(self.pause_icon)
 
 
-    def tape_image_cb(self, data):
-        self.tape_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
-
-        if self.view_type_button.currentText() == "Clue":
-            self.update_view(self.tape_image)
     
     ##
     # Callback function for the view_type: Raw
@@ -80,8 +98,8 @@ class Controller_App(QtWidgets.QMainWindow):
     def raw_image_cb(self, data):
             self.raw_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
 
-            if self.view_type_button.currentText() == "Raw":
-                self.update_view(self.raw_image)
+            if self.drive_view_type_button.currentText() == "Raw":
+                self.update_drive_view(self.raw_image)
     
     ##
     # Callback function for the view_type: Contour
@@ -91,51 +109,97 @@ class Controller_App(QtWidgets.QMainWindow):
     def contour_image_cb(self, data):
         self.contour_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
 
-        if self.view_type_button.currentText() == "Contour":
-                self.update_view(self.contour_image)
+        if self.drive_view_type_button.currentText() == "Contour":
+                self.update_drive_view(self.contour_image)
 
+
+    def tape_image_cb(self, data):
+        self.tape_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
+
+        if self.drive_view_type_button.currentText() == "Tape":
+            self.update_drive_view(self.tape_image)
+
+
+    def board_mask_cb(self, data):
+        self.mask_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
+
+        if self.CNN_view_type_button.currentText() == "Board Mask":
+            self.update_CNN_view(self.mask_image)
+
+
+    def flattened_plate_cb(self, data):
+        self.plate_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
+
+        if self.CNN_view_type_button.currentText() == "Flattened Plate":
+            self.update_CNN_view(self.plate_image)
+
+    def letters_cb(self, data):
+        self.letters_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
+
+        if self.CNN_view_type_button.currentText() == "Letters":
+            self.update_CNN_view(self.letters_image)
 
     ##
-    # Callback function for the view_type: Clue
+    # Changes the type of drive view by the type chosen in the combobox on GUI
     # 
     # @param self The object pointer
-    # @param data The image which is in imgmsg from ROS
-    def clue_detection_image_cb(self, data):
-        self.clue_image = self.bridge.imgmsg_to_cv2(data,"bgr8")
-
-        if self.view_type_button.currentText() == "Clue":
-                self.update_view(self.clue)
-
-    ##
-    # Changes the type of view by the type chosen in the combobox on GUI
-    # 
-    # @param self The object pointer
-    def change_view_type(self):
-        type = self.view_type_button.currentText()
+    def change_drive_view_type(self):
+        type = self.drive_view_type_button.currentText()
 
         if type == "Raw":
-            self.update_view(self.raw_image)
+            self.update_drive_view(self.raw_image)
 
         elif type == "Contour":
-            self.update_view(self.contour_image)
+            self.update_drive_view(self.contour_image)
 
-        elif type == "Clue":
-            self.update_view(self.tape_image)
+        elif type == "Tape":
+            self.update_drive_view(self.tape_image)
+
+    ##
+    # Changes the type of CNN view by the type chosen in the combobox on GUI
+    # 
+    # @param self The object pointer
+    def change_CNN_view_type(self):
+        type = self.CNN_view_type_button.currentText()
+
+        if type == "Board Mask":
+            self.update_CNN_view(self.mask_image)
+
+        elif type == "Flattened Plate":
+            self.update_CNN_view(self.plate_image)
+
+        elif type == "Letters":
+            self.update_CNN_view(self.letters_image)
 
     ##
     # Updates the displayed view on the GUI
     # 
     # @param self The object pointer
     # @param img The image that will be shown on the GUI
-    def update_view(self, img):
+    def update_drive_view(self, img):
         if img is None:
             return
         
         pixmap = self.convert_cv_to_pixmap(img)
-        pixmap = pixmap.scaled(self.camera_view.width(),
-                    self.camera_view.height(), QtCore.Qt.KeepAspectRatio)
+        pixmap = pixmap.scaled(self.drive_camera_view.width(),
+                    self.drive_camera_view.height(), QtCore.Qt.KeepAspectRatio)
         
-        self.camera_view.setPixmap(pixmap)
+        self.drive_camera_view.setPixmap(pixmap)
+
+    ##
+    # Updates the displayed view on the GUI
+    # 
+    # @param self The object pointer
+    # @param img The image that will be shown on the GUI
+    def update_CNN_view(self, img):
+        if img is None:
+            return
+        
+        pixmap = self.convert_cv_to_pixmap(img)
+        pixmap = pixmap.scaled(self.CNN_camera_view.width(),
+                    self.CNN_camera_view.height(), QtCore.Qt.KeepAspectRatio)
+        
+        self.CNN_camera_view.setPixmap(pixmap)
 
 
     ##
@@ -222,6 +286,13 @@ class Controller_App(QtWidgets.QMainWindow):
             self.score_tracker_process = subprocess.Popen(["python3", script],
                                                         cwd = os.path.dirname(script))
             rospy.loginfo("Reopening the Score Tracker Window")
+
+    ##
+    # Stops the timer of the score tracker.
+    #
+    # @param self The object pointer    
+    def SLOT_stop_timer(self):
+        self.pub_time.publish("team14,1234,-1,END")
     
     ##
     # Launches the ./state_machine.py when the button on GUI is clicked. 
@@ -255,7 +326,6 @@ class Controller_App(QtWidgets.QMainWindow):
             self.state_machine_process.terminate()
             self.state_machine_process.kill()
             rospy.loginfo("Terminated State Machine")
-
 
 
     ## 

@@ -63,7 +63,6 @@ class TruckState:
 
     def exit(self):
         rospy.loginfo("Exiting truck state")
-        self.state_machine.prev_state = "Truck"
         
         self.state_machine.move.linear.x = 0
         self.state_machine.move.angular.z = 2

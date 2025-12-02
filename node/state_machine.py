@@ -68,11 +68,12 @@ class StateMachine:
 
         
         self.current_state = self.states["Roundabout"]
+        self.current_state.enter()
+
         #initialization
         self.str_current_state = "Paved_Road"
         self.str_prev_prev_state = "Paved_Road"
         self.str_prev_state = "Paved_Road"
-        self.current_state.enter()
 
 
     ## Receives image data through ROS, analyzes the location of the track in the image using OpenCV, 

@@ -100,7 +100,7 @@
       <string>Terminate</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="terminate_button_2">
+    <widget class="QPushButton" name="stop_timer_button">
      <property name="geometry">
       <rect>
        <x>20</x>
@@ -146,7 +146,7 @@
      <enum>Qt::Horizontal</enum>
     </property>
    </widget>
-   <widget class="QLabel" name="camera_view">
+   <widget class="QLabel" name="drive_camera_view">
     <property name="enabled">
      <bool>true</bool>
     </property>
@@ -184,7 +184,7 @@
      <string>Reset Robot Position</string>
     </property>
    </widget>
-   <widget class="QComboBox" name="view_type_button">
+   <widget class="QComboBox" name="drive_view_type_button">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -211,11 +211,11 @@
     </item>
     <item>
      <property name="text">
-      <string>Clue</string>
+      <string>Tape</string>
      </property>
     </item>
    </widget>
-   <widget class="QLabel" name="camera_view_3">
+   <widget class="QLabel" name="CNN_camera_view">
     <property name="enabled">
      <bool>true</bool>
     </property>
@@ -259,7 +259,7 @@
      <enum>Qt::Horizontal</enum>
     </property>
    </widget>
-   <widget class="QComboBox" name="view_type_button_2">
+   <widget class="QComboBox" name="CNN_view_type_button">
     <property name="geometry">
      <rect>
       <x>10</x>

@@ -9,7 +9,7 @@ class Idle:
     
     def enter(self):
         rospy.loginfo("Entering Idle")
-        #self.state_machine.pub_time.publish("team14,1234,-1,END")
+        self.state_machine.pub_time.publish("team14,1234,-1,END")
         
     def run(self):
         
