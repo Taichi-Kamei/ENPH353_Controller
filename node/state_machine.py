@@ -117,7 +117,7 @@ class StateMachine:
         frame_height, frame_width, _ = img.shape
 
         top = int (frame_height * 0.75)
-        bottom = int (frame_height * 0.95)
+        bottom = int (frame_height * 0.85)
         left = int (frame_width * 0.4)
         right = frame_width
 
@@ -144,14 +144,17 @@ class StateMachine:
         change_in_red_pixel = current_red_pixels - self.prev_red_pixels
 
         if change_in_red_pixel < 0 and self.red_count == 1:
+                rospy.loginfo("wow")
                 self.cross_walk = True
         
-        rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
+        #rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
                         
-        if change_in_red_pixel > 4500 and  current_red_pixels > 25000:
+        if change_in_red_pixel > 4500 and  current_red_pixels > 18000:
                 self.red_count = 1
                 if self.cross_walk is True:
                     self.red_count = 2
+        
+        self.prev_red_pixels = current_red_pixels
 
 
     def detect_board_contour(self):
