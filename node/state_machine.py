@@ -145,8 +145,10 @@ class StateMachine:
 
         if change_in_red_pixel < 0 and self.red_count == 1:
                 self.cross_walk = True
+        
+        rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
                         
-        if change_in_red_pixel > 4500 and  current_red_pixels > 27000:
+        if change_in_red_pixel > 4500 and  current_red_pixels > 25000:
                 self.red_count = 1
                 if self.cross_walk is True:
                     self.red_count = 2
@@ -195,8 +197,6 @@ class StateMachine:
             self.next_state = self.states[self.current_state.run()]
 
             if self.next_state != self.current_state:
-                self.current_state.exit()
-                self.current_state = self.next_state
 
                 #For clue detection transition
                 for key, state in self.states.items():
@@ -205,6 +205,8 @@ class StateMachine:
                 self.str_prev_prev_state = self.str_prev_state
                 self.str_prev_state = self.str_current_state
 
+                self.current_state.exit()
+                self.current_state = self.next_state
                 self.current_state.enter()
             
             rate.sleep()
