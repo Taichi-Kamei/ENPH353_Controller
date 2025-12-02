@@ -24,8 +24,8 @@ class OCR:
             
             # Get input/output details
             self.input_details = self.interpreter.get_input_details()
-            self.input_width = self.input_details[0]['shape'][0]
             self.input_height = self.input_details[0]['shape'][1]
+            self.input_width = self.input_details[0]['shape'][2]
 
             self.output_details = self.interpreter.get_output_details()
             
@@ -49,7 +49,7 @@ class OCR:
             gray = letter_image
         
         # Resize to target size
-        resized = cv2.resize(gray, (self.input_width, self.input_height), interpolation=cv2.INTER_AREA)
+        resized = cv2.resize(gray, (self.input_width, self.input_height))
         
         # Normalize to [0, 1]
         normalized = resized.astype(np.float32) / 255.0
@@ -65,9 +65,17 @@ class OCR:
             return None, 0.0
         
         try:
+            # Debug: print expected shape
+            # print(f"DEBUG: Model expects shape: {self.input_details[0]['shape']}")
+            # print(f"DEBUG: Letter image shape: {letter_image.shape}")
+
             # Set the input tensor
             # Ensure the input has the correct dtype (float32) and shape (add batch dimension)
             input_tensor = self.preprocess_letter(letter_image)
+
+            # Debug: print what we're about to feed
+            # print(f"DEBUG: Input tensor shape: {input_tensor.shape}")
+
             self.interpreter.set_tensor(self.input_details[0]['index'], input_tensor)
 
             # Invoke the interpreter to run inference
