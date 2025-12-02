@@ -19,13 +19,15 @@ class Paved_RoadState:
     def run(self):
         
         img = self.state_machine.image_data
+        
     
         if self.state_machine.red_count == 1:
             return "Pedestrian"
         
         if self.state_machine.board_contour is not None:
+            rospy.loginfo("hey")
             return "Clue_Detect"
-
+        
         self.drive(img, self.linear_speed)
 
         return "Paved_Road"

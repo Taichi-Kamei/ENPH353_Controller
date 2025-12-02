@@ -6,6 +6,12 @@ class Clue_DetectState:
     def __init__(self, state_machine):
         self.state_machine = state_machine
 
+        self.linear_speed = 1
+        self.kp = 0.03
+        
+        self.aligned = False
+        self.clue_sent = False
+
         #Kinda chopped since some prev_prev_state is Clue_Detect state and some aren't but deal with it
         self.transition_from_clue = {
            ("Paved_Road",     "Paved_Road")    : "Paved_Road",
@@ -19,40 +25,88 @@ class Clue_DetectState:
         }
 
     def enter(self):
-        rospy.loginfo("Entering Pedestrian state")
+        rospy.loginfo("Entering Clue Detect state")
 
+        self.state_machine.move.linear.x  = 0.5
+        self.state_machine.move.angular.z = 0
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.2)
         self.state_machine.move.linear.x  = 0
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)
 
     def run(self):
-        contour, frame_width = self.state_machine.board_contour
-        M = cv2.moments(contour)
 
-        if M["m00"] > 0:
+        if self.state_machine.image_data is None:
+
+            return "Clue_Detect"
+        
+        hsv = cv2.cvtColor(self.state_machine.image_data, cv2.COLOR_BGR2HSV)
+
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (105, 150, 50)
+        upper_blue = (120, 255, 150)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+        
+        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 15000]
+        # contour = self.state_machine.board_contour
+        # frame_width = self.state_machine.frame_width_board
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            M = cv2.moments(contour)
+
+            if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
                 error = (frame_width / 2) - cx
+
+                if self.aligned and self.clue_sent:
+                    self.state_machine.move.linear.x  = 0
+                    self.state_machine.move.angular.z = -self.kp * error
+                    self.state_machine.pub_vel.publish(self.state_machine.move)
+                    rospy.loginfo(error)
                 
-                if abs(error) <= 3:
-                    #TODO Add clue transmission code here
+                    if abs(error) >= 100:
+                        return self.transition_from_clue[
+                            (self.state_machine.str_prev_prev_state, self.state_machine.str_prev_state)]
+                    
+                elif self.aligned:
+                    self.state_machine.move.linear.x  = 0.5
+                    self.state_machine.move.angular.z = 0
+                    self.state_machine.pub_vel.publish(self.state_machine.move)
+                    rospy.sleep(0.3)
+                    self.state_machine.move.linear.x  = 0
+                    self.state_machine.move.angular.z = 0
+                    self.state_machine.pub_vel.publish(self.state_machine.move)
                     self.clue_detect()
-
-                    return self.transition_from_clue[self.state_machine.str_prev_prev_state, self.state_machine.str_prev_state]
-
-                self.state_machine.move.linear.x  = 0
-                self.state_machine.move.angular.z = self.kp * error
-                self.state_machine.pub_vel.publish(self.state_machine.move)
-
-
+                    
+                else:
+                    # rospy.loginfo(error)
+                    self.state_machine.move.linear.x  = 0
+                    self.state_machine.move.angular.z = self.kp * error
+                    self.state_machine.pub_vel.publish(self.state_machine.move)
+                    
+                    if abs(error) <= 20:
+                        self.aligned = True
+                            
+                    
         return "Clue_Detect"
 
 
     def exit(self):
-        self.state_machine.board_detected = False
-        rospy.loginfo("Exiting Pedestrian State")
+        rospy.loginfo("Exiting Clue Detect State")
+
+        self.state_machine.board_detected = 0
+        self.aligned = False
+        self.go_close = False
 
     
     def clue_detect(self):
+         
          #TODO
          pass

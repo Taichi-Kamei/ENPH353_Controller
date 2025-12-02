@@ -31,7 +31,7 @@ class StateMachine:
         #self.clue_detect = clue detect class(self)
 
         self.image_data = None
-        self.board_contour = None, None
+        self.board_contour, self.frame_width_board = None, None
 
         self.red_count = 0
         self.pink_count = 0
@@ -41,7 +41,7 @@ class StateMachine:
         
         self.cross_walk = False
         self.idle = False
-        self.board_detected = False
+        self.board_detected = 0
 
 
         self.sub_clk = rospy.Subscriber("/clock", Clock, self.clock_cb)
@@ -59,21 +59,21 @@ class StateMachine:
 
 
         self.states = {
-           "Clue_Detect": Clue_DetectState(self),
-           "Paved_Road": Paved_RoadState(self),
-           "Dirt_Road": Dirt_RoadState(self),
-           "Narrow_Road": Narrow_RoadState(self),
-           "Pedestrian": PedestrianState(self),
+           "Clue_Detect"   : Clue_DetectState(self),
+           "Paved_Road"    : Paved_RoadState(self),
+           "Dirt_Road"     : Dirt_RoadState(self),
+           "Narrow_Road"   : Narrow_RoadState(self),
+           "Pedestrian"    : PedestrianState(self),
            "Post_Crosswalk": Post_CrosswalkState(self),
-           "Roundabout": RoundaboutState(self),
-           "Off_Road": Off_RoadState(self),
-           "Mountain": MountainState(self),
-           "Truck": TruckState(self),
-           "Idle": Idle(self)
+           "Roundabout"    : RoundaboutState(self),
+           "Off_Road"      : Off_RoadState(self),
+           "Mountain"      : MountainState(self),
+           "Truck"         : TruckState(self),
+           "Idle"          : Idle(self)
         }
 
         
-        self.current_state = self.states["Roundabout"]
+        self.current_state = self.states["Paved_Road"]
         self.current_state.enter()
 
         #initialization
@@ -90,7 +90,10 @@ class StateMachine:
         try:
             self.image_data = self.bridge.imgmsg_to_cv2(data, "bgr8")
             self.detect_tape()
-            self.board_contour = self.detect_board_contour()
+            if self.board_detected >= 10:
+                self.board_contour, self.frame_width_board = self.detect_board_contour()
+            else:
+                 self.board_detected += 1
         except CvBridgeError as e:
             print(e)
 
@@ -158,19 +161,27 @@ class StateMachine:
 
         frame_height, frame_width,_ = hsv.shape
 
-        lower_blue = (105, 150, 190)
-        upper_blue = (120, 255, 255)
+        lower_blue = (105, 150, 50)
+        upper_blue = (120, 255, 150)
         mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
 
         #TODO crop
 
         contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
-        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 4000]
+        
+        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 20000]
+
+        with_contour = cv2.drawContours(self.image_data, contours, -1, (0,255,0), 5)
+        img_a = self.bridge.cv2_to_imgmsg(with_contour, encoding="bgr8")
+        self.pub_tape_cam.publish(img_a)
 
         if len(contours) >= 1:
-             contour = max(contours, key=cv2.contourArea(contours))
-             return contour, frame_width
+            contour = max(contours, key=cv2.contourArea)
+            
+            return contour, frame_width
+
+            
         
         return None, frame_width
 
