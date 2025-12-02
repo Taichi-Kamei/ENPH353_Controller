@@ -233,12 +233,18 @@ class ClueDetector:
             typical_width = np.median(single_letter_widths)
         else:
             typical_width = letters_mask.shape[1] * 0.08
-        
-        # Sort by x position
-        row_contours.sort(key=lambda item: item[0])
 
-        # Process each contour in this row
+        # Create list of (contour, x_position) pairs
+        contour_xs = []
         for contour in row_contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            contour_xs.append((contour, x))
+        
+        # Sort by y position
+        contour_xs.sort(key=lambda item: item[1])
+        
+        # Process each contour in this row
+        for contour, x in contour_xs:
             area = cv2.contourArea(contour)
             if area > self.params['min_letter_area']:
                 x, y, w, h = cv2.boundingRect(contour)
