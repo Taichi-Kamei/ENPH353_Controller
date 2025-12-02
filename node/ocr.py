@@ -24,6 +24,9 @@ class OCR:
             
             # Get input/output details
             self.input_details = self.interpreter.get_input_details()
+            self.input_height = self.input_details[0]['shape'][1]
+            self.input_width = self.input_details[0]['shape'][2]
+
             self.output_details = self.interpreter.get_output_details()
             
             print(f"Model loaded: {model_path}")
@@ -34,7 +37,7 @@ class OCR:
             print(f"Error loading model: {e}")
             self.interpreter = None
     
-    def preprocess_letter(self, letter_image, target_size=(32, 32)):
+    def preprocess_letter(self, letter_image):
         """Preprocess letter image for OCR model"""
         if letter_image is None:
             return None
@@ -46,19 +49,15 @@ class OCR:
             gray = letter_image
         
         # Resize to target size
-        resized = cv2.resize(gray, target_size, interpolation=cv2.INTER_AREA)
+        resized = cv2.resize(gray, (self.input_width, self.input_height))
         
         # Normalize to [0, 1]
         normalized = resized.astype(np.float32) / 255.0
+
+        input_data = normalized.reshape(self.input_height, self.input_width, 1).astype('float32')
+        input_tensor = np.expand_dims(input_data, axis=0).astype(np.float32)
         
-        # Add channel dimension if needed
-        if self.input_details[0]['shape'][-1] == 1:
-            normalized = np.expand_dims(normalized, axis=-1)
-        
-        # Add batch dimension
-        input_data = np.expand_dims(normalized, axis=0)
-        
-        return input_data
+        return input_tensor
     
     def predict(self, letter_image):
         """Predict character from letter image"""
@@ -66,24 +65,24 @@ class OCR:
             return None, 0.0
         
         try:
-            # Allocate tensors (necessary to prepare the interpreter for inference)
-            self.interpreter.allocate_tensors()
-
-            # Get input and output tensor details
-            input_details = self.interpreter.get_input_details()
-            output_details = self.interpreter.get_output_details()
+            # Debug: print expected shape
+            # print(f"DEBUG: Model expects shape: {self.input_details[0]['shape']}")
+            # print(f"DEBUG: Letter image shape: {letter_image.shape}")
 
             # Set the input tensor
             # Ensure the input has the correct dtype (float32) and shape (add batch dimension)
-            input_data = letter_image.reshape(150, 100, 1).astype('float32')
-            input_tensor = np.expand_dims(input_data, axis=0).astype(np.float32)
-            self.interpreter.set_tensor(input_details[0]['index'], input_tensor)
+            input_tensor = self.preprocess_letter(letter_image)
+
+            # Debug: print what we're about to feed
+            # print(f"DEBUG: Input tensor shape: {input_tensor.shape}")
+
+            self.interpreter.set_tensor(self.input_details[0]['index'], input_tensor)
 
             # Invoke the interpreter to run inference
             self.interpreter.invoke()
 
             # Get the output tensor
-            output_data = self.interpreter.get_tensor(output_details[0]['index'])
+            output_data = self.interpreter.get_tensor(self.output_details[0]['index'])
             
             # Get prediction
             prediction = np.argmax(output_data[0])
@@ -103,8 +102,8 @@ class OCR:
     
     def predict_batch(self, letter_images):
         """Predict multiple letters"""
-        results = []
+        results = ""
         for img in letter_images:
             char, confidence = self.predict(img)
-            results.append((char, confidence))
+            results += char
         return results
