@@ -52,7 +52,7 @@ class Clue_DetectState:
         contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
         
-        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 15000]
+        #contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 15000]
         # contour = self.state_machine.board_contour
         # frame_width = self.state_machine.frame_width_board
 
@@ -79,14 +79,14 @@ class Clue_DetectState:
                     self.state_machine.move.linear.x  = 0.5
                     self.state_machine.move.angular.z = 0
                     self.state_machine.pub_vel.publish(self.state_machine.move)
-                    rospy.sleep(0.3)
+                    rospy.sleep(0.2)
                     self.state_machine.move.linear.x  = 0
                     self.state_machine.move.angular.z = 0
                     self.state_machine.pub_vel.publish(self.state_machine.move)
                     self.clue_detect()
-                    
                 else:
-                    # rospy.loginfo(error)
+                    rospy.loginfo(error)
+                    
                     self.state_machine.move.linear.x  = 0
                     self.state_machine.move.angular.z = self.kp * error
                     self.state_machine.pub_vel.publish(self.state_machine.move)

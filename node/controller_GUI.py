@@ -59,12 +59,12 @@ class Controller_App(QtWidgets.QMainWindow):
 
         # Main python script related
         self.launch_state_machine_button.clicked.connect(self.SLOT_launch_state_machine_script)
-        self.terminate_button.clicked.connect(self.SLOT_terminate_state_machine_script)
+        #self.terminate_button.clicked.connect(self.SLOT_terminate_state_machine_script)
         
 
         self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
-        self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
-        self.move = Twist()
+        # self.pub_vel = rospy.Publisher("/B1/cmd_vel", Twist, queue_size=1)
+        # self.move = Twist()
 
         # Subscribers for the driving and raw feed camera views
         self.sub_raw_view = rospy.Subscriber("/B1/rrbot/camera1/image_raw",
@@ -310,22 +310,22 @@ class Controller_App(QtWidgets.QMainWindow):
             self.state_machine_process = subprocess.Popen(["./state_machine.py"])
             rospy.loginfo("Restarting State Machine")
 
-    ##
-    # Terminates the ./state_machine.py without relaunch.
-    # 
-    # @param self The object pointer
-    def SLOT_terminate_state_machine_script(self):
-        if self.state_machine_process:
-            for _ in range(5):
-                self.move.linear.x = 0
-                self.move.angular.z = 0
-                self.pub_vel.publish(self.move)
-                rospy.sleep(0.02)
-            rospy.loginfo("stopped robot")
+    # ##
+    # # Terminates the ./state_machine.py without relaunch.
+    # # 
+    # # @param self The object pointer
+    # def SLOT_terminate_state_machine_script(self):
+    #     if self.state_machine_process:
+    #         for _ in range(5):
+    #             self.move.linear.x = 0
+    #             self.move.angular.z = 0
+    #             self.pub_vel.publish(self.move)
+    #             rospy.sleep(0.02)
+    #         rospy.loginfo("stopped robot")
 
-            self.state_machine_process.terminate()
-            self.state_machine_process.kill()
-            rospy.loginfo("Terminated State Machine")
+    #         self.state_machine_process.terminate()
+    #         self.state_machine_process.kill()
+    #         rospy.loginfo("Terminated State Machine")
 
 
     ## 
