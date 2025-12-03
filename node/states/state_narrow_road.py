@@ -38,6 +38,7 @@ class Narrow_RoadState:
     def exit(self):
         rospy.loginfo("Exiting Narrow Road state")
         self.state_machine.was_narrow_state = True
+        self.state_machine.board_left = False
 
 
     def drive(self, img, speed):

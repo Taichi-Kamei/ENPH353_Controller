@@ -84,12 +84,28 @@ class Clue_DetectState:
                 cy = int(M["m01"] / M["m00"])
 
                 if self.aligned and self.clue_sent:
+
+                    if self.state_machine.board_left:
+                        self.state_machine.move.linear.x  = 0
+                        self.state_machine.move.angular.z = -3
+                        self.state_machine.pub_vel.publish(self.state_machine.move)
+                        rospy.sleep(0.5)
+                    else:
+                        self.state_machine.move.linear.x  = 0
+                        self.state_machine.move.angular.z = 3
+                        self.state_machine.pub_vel.publish(self.state_machine.move)
+                        rospy.sleep(0.5)
+                    
+                    return self.transition_from_clue[self.transition_key]
                     
                     slope = 0.5
 
                     shift = slope * cy / 2
-                    if self.board_position_left:
+                    if self.state_machine.board_left:
                         shift = -shift
+
+                    # if self.board_position_left:
+                    #     shift = -shift
 
                     error =  (frame_width / 2) - (cx + shift)
 
@@ -114,7 +130,7 @@ class Clue_DetectState:
                 else:
                     error = (frame_width / 2) - cx
 
-                    if abs(error) <= 15:
+                    if abs(error) <= 10:
                         self.state_machine.move.linear.x  = 0
                         self.state_machine.move.angular.z = 0
                         self.state_machine.pub_vel.publish(self.state_machine.move)

@@ -38,6 +38,7 @@ class Dirt_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Dirt Road state")
+        self.state_machine.board_left = True
 
 
     def drive(self, img, speed):

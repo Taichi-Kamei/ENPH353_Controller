@@ -8,8 +8,8 @@ class Post_CrosswalkState:
         self.state_machine = state_machine
         self.bridge = CvBridge()
         self.threshold = 160    
-        self.linear_speed = 1.2
-        self.kp = 0.05
+        self.linear_speed = 1.1
+        self.kp = 0.03
 
         self.count = 0
 
@@ -37,6 +37,7 @@ class Post_CrosswalkState:
 
     def exit(self):
         rospy.loginfo("Exiting Post Crosswalk State")
+        self.state_machine.board_left = False
     
 
     def drive(self, img, speed):

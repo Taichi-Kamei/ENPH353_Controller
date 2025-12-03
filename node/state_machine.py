@@ -26,7 +26,7 @@ class StateMachine:
         self.pink_count = 0
         self.clue_board = 0
 
-
+        self.board_left = True
 
         self.prev_red_pixels = None
         
@@ -146,9 +146,9 @@ class StateMachine:
                 # rospy.loginfo("wow")
                 self.during_cross = True
         
-        #rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
+        rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
                         
-        if change_in_red_pixel > 2600 and  current_red_pixels > 10000:
+        if change_in_red_pixel > 0 and current_red_pixels > 18000:
                 self.red_count = 1
                 if self.cross_walk is True:
                     self.red_count = 2

@@ -37,6 +37,7 @@ class Steep_CurveState:
 
     def exit(self):
         rospy.loginfo("Exiting Steep Curve State")
+        self.state_machine.board_left = True
     
 
     def drive(self, img, speed):

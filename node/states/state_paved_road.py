@@ -33,6 +33,7 @@ class Paved_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Paved Road State")
+        self.state_machine.board_left = True
     
 
     def drive(self, img, speed):
@@ -160,12 +161,12 @@ class Paved_RoadState:
             img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
             self.state_machine.pub_tape_cam.publish(img_a)
 
-            threshold = 17000
+            threshold = 22000
             if cnt_area > threshold and cnt_area < threshold + 2000:
                 return contour
             
-            threshold = 29000
-            if cnt_area > threshold and cnt_area < threshold + 2000:
-                return contour
+            # threshold = 29000
+            # if cnt_area > threshold and cnt_area < threshold + 2000:
+            #     return contour
         
         return None

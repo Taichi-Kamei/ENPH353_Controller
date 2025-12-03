@@ -153,6 +153,7 @@ class Off_RoadState:
     def exit(self):
         rospy.loginfo("Exiting Off Road state")
         self.state_machine.was_off_road_state = True
+        self.state_machine.board_left = True
 
 
     def detect_board_for_transition(self, img):
