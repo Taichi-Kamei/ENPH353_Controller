@@ -56,10 +56,11 @@ class Controller_App(QtWidgets.QMainWindow):
         # Score tracker related
         self.launch_score_tracker_button.clicked.connect(self.SLOT_launch_score_tracker_script)
         self.stop_timer_button.clicked.connect(self.SLOT_stop_timer)
+        self.start_timer_button.clicked.connect(self.SLOT_start_timer)
+        
 
         # Main python script related
         self.launch_state_machine_button.clicked.connect(self.SLOT_launch_state_machine_script)
-        #self.terminate_button.clicked.connect(self.SLOT_terminate_state_machine_script)
         
 
         self.pub_time = rospy.Publisher("/score_tracker", String, queue_size = 1, latch = True)
@@ -286,6 +287,13 @@ class Controller_App(QtWidgets.QMainWindow):
             self.score_tracker_process = subprocess.Popen(["python3", script],
                                                         cwd = os.path.dirname(script))
             rospy.loginfo("Reopening the Score Tracker Window")
+
+    ##
+    # Stops the timer of the score tracker.
+    #
+    # @param self The object pointer    
+    def SLOT_start_timer(self):
+        self.pub_time.publish("team14,1234,0,Start")
 
     ##
     # Stops the timer of the score tracker.

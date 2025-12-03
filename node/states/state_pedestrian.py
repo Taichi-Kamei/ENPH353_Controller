@@ -19,7 +19,7 @@ class PedestrianState:
         self.state_machine.move.linear.x = 0
         self.state_machine.move.angular.z = 1
         self.state_machine.pub_vel.publish(self.state_machine.move)
-        rospy.sleep(0.2)
+        rospy.sleep(0.1)
         self.state_machine.move.linear.x = -1
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)

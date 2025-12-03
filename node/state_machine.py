@@ -26,9 +26,15 @@ class StateMachine:
         self.pink_count = 0
         self.clue_board = 0
 
+
+
         self.prev_red_pixels = None
         
+        self.was_narrow_state = False
+        self.was_off_road_state = False
+
         self.cross_walk = False
+        self.during_cross = False
         self.idle = False
         self.board_detected = 0
 
@@ -48,22 +54,25 @@ class StateMachine:
 
 
         self.states = {
-           "Clue_Detect"   : Clue_DetectState(self),
-           "Paved_Road"    : Paved_RoadState(self),
-           "Dirt_Road"     : Dirt_RoadState(self),
-           "Narrow_Road"   : Narrow_RoadState(self),
-           "Pedestrian"    : PedestrianState(self),
-           "Post_Crosswalk": Post_CrosswalkState(self),
-           "Pre_Truck"     : Pre_TruckState(self),
-           "Roundabout"    : RoundaboutState(self),
-           "Off_Road"      : Off_RoadState(self),
-           "Mountain"      : MountainState(self),
-           "Truck"         : TruckState(self),
-           "Idle"          : Idle(self)
+           "Clue_Detect"    : Clue_DetectState(self),
+           "Paved_Road"     : Paved_RoadState(self),
+           "Dirt_Road"      : Dirt_RoadState(self),
+           "Narrow_Road"    : Narrow_RoadState(self),
+           "Pedestrian"     : PedestrianState(self),
+           "Post_Crosswalk" : Post_CrosswalkState(self),
+           "Steep_Curve"    : Steep_CurveState(self),
+           "Pre_Truck"      : Pre_TruckState(self),
+           "Roundabout"     : RoundaboutState(self),
+           "Post_Roundabout": Post_RoundaboutState(self),
+           "Pre_Off_Road"   : Pre_Off_RoadState(self),
+           "Off_Road"       : Off_RoadState(self),
+           "Mountain"       : MountainState(self),
+           "Truck"          : TruckState(self),
+           "Idle"           : Idle(self)
         }
 
         
-        self.current_state = self.states["Pre_Truck"]
+        self.current_state = self.states["Paved_Road"]
         self.current_state.enter()
 
 
@@ -126,18 +135,25 @@ class StateMachine:
                 self.prev_red_pixels = current_red_pixels
                 return
         
+        #rospy.loginfo(self.red_count)
+        
         change_in_red_pixel = current_red_pixels - self.prev_red_pixels
 
         if change_in_red_pixel < 0 and self.red_count == 1:
                 # rospy.loginfo("wow")
                 self.cross_walk = True
+        elif change_in_red_pixel < 0 and self.red_count == 2:
+                # rospy.loginfo("wow")
+                self.during_cross = True
         
-        # rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
+        #rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
                         
-        if change_in_red_pixel > 4300 and  current_red_pixels > 10000:
+        if change_in_red_pixel > 2600 and  current_red_pixels > 10000:
                 self.red_count = 1
                 if self.cross_walk is True:
                     self.red_count = 2
+                if self.during_cross is True:
+                    self.red_count = 3
         
         self.prev_red_pixels = current_red_pixels
 
@@ -164,7 +180,7 @@ class StateMachine:
         if len(contours) >= 1:
             contour = max(contours, key=cv2.contourArea)
             cnt_area = cv2.contourArea(contour)
-            threshold = 19000
+            threshold = 18500
 
             if cnt_area > threshold and cnt_area < threshold + 2000:
                 return contour, frame_width
@@ -174,7 +190,7 @@ class StateMachine:
                  
     def run(self):
         rate = rospy.Rate(20)
-        self.pub_time.publish("Team14,password,0,START")
+        # self.pub_time.publish("Team14,password,0,START")
 
         while not rospy.is_shutdown():
             self.next_state = self.states[self.current_state.run()]
