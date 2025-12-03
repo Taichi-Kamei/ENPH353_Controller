@@ -12,7 +12,7 @@ class ClueDetector:
         self.latest_plate = None
         self.latest_letter_mask = None
 
-        self.latest_id = None
+        self.latest_id = 0
         self.latest_key = None
         self.latest_value = None
 
@@ -32,7 +32,7 @@ class ClueDetector:
         self.params = {
             'contour_epsilon': 0.02,
 
-            'min_board_area' : 11000,
+            'min_board_area' : 12000,
             'min_board_color': np.array([80, 125, 0]),
             'max_board_color': np.array([160, 255, 255]),
             'board_width': 600,
@@ -76,17 +76,16 @@ class ClueDetector:
         # Board extraction
         self.latest_board = self.extract_board(raw_image, blue_contours)
         
-        # Plate and letter extraction
-        letters = []
-        
         if self.latest_board is not None:
             self.latest_plate = self.extract_plate(self.latest_board)
             
             if self.latest_plate is not None:
                 self.latest_letter_mask, self.latest_key, self.latest_value = self.extract_letters(self.latest_plate)
-                self.latest_id = self.ids[self.latest_key]
+                self.latest_id = self.ids.get(self.latest_key, self.latest_id + 1)
+                
+                return self.latest_id, self.latest_value
 
-        return self.latest_id, self.latest_value
+        return None, None
 
     def create_blue_mask(self, image):
         """Create blue mask and find contours"""
