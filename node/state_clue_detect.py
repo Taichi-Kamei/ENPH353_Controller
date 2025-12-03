@@ -18,16 +18,18 @@ class Clue_DetectState:
 
         self.board_position_left = True
 
+        self.transition_key = None
+
         #Kinda chopped since some prev_prev_state is Clue_Detect state and some aren't but deal with it
         self.transition_from_clue = {
-           ("Paved_Road",     "Paved_Road")    : "Paved_Road",
-           ("Pedestrian",     "Post_Crosswalk"): "Paved_Road",
-           ("Clue_Detect",    "Paved_Road")    : "Truck",
-           ("Truck",          "Roundabout")    : "Roundabout",
-           ("Roundabout",     "Dirt_Road")     : "Narrow_Road",
-           ("Clue_Detect",    "Narrow_Road")   : "Narrow_Road",
-           ("Narrow_Road",    "Off_Road")      : "Mountain",
-           ("Clue_Detect",     "Mountain")     : "Idle",
+           "1": "Paved_Road",
+           "2": "Paved_Road",
+           "3": "Truck",
+           "4": "Roundabout",
+           "5": "Narrow_Road",
+           "6": "Narrow_Road",
+           "7": "Mountain",
+           "8": "Idle"   
         }
 
         self.bridge = CvBridge()
@@ -101,8 +103,7 @@ class Clue_DetectState:
                 
                     if abs(error) >= 80 and abs(error) <= 120:
                         
-                        return self.transition_from_clue[
-                            (self.state_machine.str_prev_prev_state, self.state_machine.str_prev_state)]
+                        return self.transition_from_clue[self.transition_key]
                     
                 elif self.aligned:
                     
@@ -134,6 +135,7 @@ class Clue_DetectState:
         self.state_machine.board_detected = 0
         self.aligned = False
         self.go_close = False
+        self.clue_sent = False
 
     
     def clue_detect(self, img):
@@ -154,8 +156,9 @@ class Clue_DetectState:
 
         
         self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
-        rospy.loginfo(value)
-        rospy.loginfo(f"Team14,password,{id},{value}")
+        # rospy.loginfo(value)
+        # rospy.loginfo(f"Team14,password,{id},{value}")
 
         if value is not None:
             self.clue_sent = True
+            self.transition_key = f"{id}"
