@@ -113,7 +113,7 @@ class Paved_RoadState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 1.7
+                    slope = 2.5
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -165,7 +165,7 @@ class Paved_RoadState:
                 return contour
             
             threshold = 29000
-            if cnt_area > threshold and cnt_area < threshold + 3000:
+            if cnt_area > threshold and cnt_area < threshold + 5000:
                 return contour
         
         return None

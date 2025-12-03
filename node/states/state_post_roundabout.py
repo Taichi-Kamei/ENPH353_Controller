@@ -7,7 +7,7 @@ class Post_RoundaboutState:
     def __init__(self, state_machine):
         self.state_machine = state_machine
         self.bridge = CvBridge()
-        self.threshold = 160
+        self.threshold = 170
         self.linear_speed = 0.95
         self.kp = 0.04
 

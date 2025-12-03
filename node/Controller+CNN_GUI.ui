@@ -87,23 +87,23 @@
       <string>Score Tracker</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="terminate_button">
+    <widget class="QPushButton" name="start_timer_button">
      <property name="geometry">
       <rect>
-       <x>150</x>
+       <x>20</x>
        <y>70</y>
        <width>91</width>
        <height>25</height>
       </rect>
      </property>
      <property name="text">
-      <string>Terminate</string>
+      <string>Start Timer</string>
      </property>
     </widget>
     <widget class="QPushButton" name="stop_timer_button">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>150</x>
        <y>70</y>
        <width>91</width>
        <height>25</height>

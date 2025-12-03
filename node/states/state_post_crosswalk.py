@@ -24,8 +24,11 @@ class Post_CrosswalkState:
         
         img = self.state_machine.image_data
 
-        if self.state_machine.board_contour is not None:
+        if self.detect_board_contour is not None:
             return "Clue_Detect"
+        
+        if self.count >= 140:
+            return "Steep_Curve"
     
         self.drive(img, self.linear_speed)
 
@@ -159,7 +162,7 @@ class Post_CrosswalkState:
                 if (y + h == frame_height and y <= 0.7 * frame_height and (x <= 0.2 * frame_width or x >= 0.75 * frame_width)) or (x == 0 or x + w == frame_width):
 
                     slope = 1.4
-                    rospy.loginfo(self.count)
+                    #rospy.loginfo(self.count)
 
                     if self.count <= 95 and self.count >= 85 and self.count % 3 == 0:
                         slope = 3.7
@@ -185,3 +188,35 @@ class Post_CrosswalkState:
         self.state_machine.pub_processed_cam.publish(img_a)
 
         self.state_machine.pub_vel.publish(self.state_machine.move)
+
+    
+    def detect_board_contour(self, img):
+         
+        if img is None:
+            return None
+        
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (80, 125, 0)
+        upper_blue = (160, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            cnt_area = cv2.contourArea(contour)
+            rospy.loginfo(f"detect area: {cnt_area}")
+
+            with_contours = cv2.drawContours(img, contour, -1, (0,255,0), 5)
+            img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
+            self.state_machine.pub_tape_cam.publish(img_a)
+
+            
+            threshold = 29000
+            if cnt_area > threshold and cnt_area < threshold + 3000:
+                return contour
+        
+        return None
