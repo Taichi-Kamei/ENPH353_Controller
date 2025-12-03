@@ -11,12 +11,16 @@ class Post_CrosswalkState:
         self.linear_speed = 1.2
         self.kp = 0.05
 
+        self.count = 0
+
 
     def enter(self):
         rospy.loginfo("Entering Post Crosswalk State")
 
 
     def run(self):
+
+        self.count += 1
         
         img = self.state_machine.image_data
 
@@ -154,7 +158,16 @@ class Post_CrosswalkState:
 
                 if (y + h == frame_height and y <= 0.7 * frame_height and (x <= 0.2 * frame_width or x >= 0.75 * frame_width)) or (x == 0 or x + w == frame_width):
 
-                    slope = 2.7
+                    slope = 1.4
+                    rospy.loginfo(self.count)
+                    if self.count >= 90:
+                        slope = 3.7
+                    elif self.count >= 80:
+                        slope = 1.7
+                    elif self.count >= 70:
+                        slope = 3.7
+                    
+                    
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
