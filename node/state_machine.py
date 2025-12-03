@@ -1,20 +1,9 @@
 #!/usr/bin/env python3
 
-
 import cv2
 import rospy
 
-from state_clue_detect import Clue_DetectState
-from state_paved_road import Paved_RoadState
-from state_dirt_road import Dirt_RoadState
-from state_narrow_road import Narrow_RoadState
-from state_pedestrian import PedestrianState
-from state_post_crosswalk import Post_CrosswalkState
-from state_roundabout import RoundaboutState
-from state_off_road import Off_RoadState
-from state_mountain import MountainState
-from state_truck import TruckState
-from state_idle import Idle
+from states import *
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
@@ -65,6 +54,7 @@ class StateMachine:
            "Narrow_Road"   : Narrow_RoadState(self),
            "Pedestrian"    : PedestrianState(self),
            "Post_Crosswalk": Post_CrosswalkState(self),
+           "Pre_Truck"     : Pre_TruckState(self),
            "Roundabout"    : RoundaboutState(self),
            "Off_Road"      : Off_RoadState(self),
            "Mountain"      : MountainState(self),
@@ -75,11 +65,6 @@ class StateMachine:
         
         self.current_state = self.states["Paved_Road"]
         self.current_state.enter()
-
-        #initialization
-        self.str_current_state = "Paved_Road"
-        self.str_prev_prev_state = "Paved_Road"
-        self.str_prev_state = "Paved_Road"
 
 
     ## Receives image data through ROS, analyzes the location of the track in the image using OpenCV, 
@@ -192,18 +177,9 @@ class StateMachine:
         self.pub_time.publish("Team14,password,0,START")
 
         while not rospy.is_shutdown():
-
             self.next_state = self.states[self.current_state.run()]
 
             if self.next_state != self.current_state:
-
-                #For clue detection transition
-                for key, state in self.states.items():
-                    if state == self.current_state:
-                        self.str_current_state = key
-                self.str_prev_prev_state = self.str_prev_state
-                self.str_prev_state = self.str_current_state
-
                 self.current_state.exit()
                 self.current_state = self.next_state
                 self.current_state.enter()
