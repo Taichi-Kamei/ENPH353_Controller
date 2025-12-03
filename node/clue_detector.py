@@ -6,7 +6,7 @@ from rapidfuzz import process, fuzz
 from ocr import OCR
 
 class ClueDetector:
-    def __init__(self, model_path='conv_model_dropout.tflite'):
+    def __init__(self, model_path='conv_model_0.99.tflite'):
         self.latest_board_mask = None
         self.latest_board = None
         self.latest_plate = None
