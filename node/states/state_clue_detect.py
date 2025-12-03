@@ -112,7 +112,6 @@ class Clue_DetectState:
                     self.state_machine.pub_vel.publish(self.state_machine.move)
                     self.clue_detect(img)
                 else:
-                    
                     error = (frame_width / 2) - cx
 
                     if abs(error) <= 15:
@@ -132,7 +131,7 @@ class Clue_DetectState:
         rospy.loginfo("Exiting Clue Detect State")
 
         self.state_machine.board_detected = 0
-        self.state_machine.was_narrow = False
+        self.state_machine.was_narrow_state = False
 
         self.aligned = False
         self.go_close = False
