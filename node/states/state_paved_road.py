@@ -113,7 +113,7 @@ class Paved_RoadState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 2.7
+                    slope = 1.7
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -155,13 +155,17 @@ class Paved_RoadState:
             contour = max(contours, key=cv2.contourArea)
             cnt_area = cv2.contourArea(contour)
             rospy.loginfo(f"detect area: {cnt_area}")
-            threshold = 19000
 
             with_contours = cv2.drawContours(img, contour, -1, (0,255,0), 5)
             img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
             self.state_machine.pub_tape_cam.publish(img_a)
 
-            if cnt_area > threshold and cnt_area < threshold + 1500:
+            threshold = 24000
+            if cnt_area > threshold and cnt_area < threshold + 2000:
+                return contour
+            
+            threshold = 29000
+            if cnt_area > threshold and cnt_area < threshold + 3000:
                 return contour
         
         return None

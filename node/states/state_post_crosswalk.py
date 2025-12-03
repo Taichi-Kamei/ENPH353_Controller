@@ -161,7 +161,7 @@ class Post_CrosswalkState:
                     slope = 1.4
                     rospy.loginfo(self.count)
 
-                    if self.count <= 100 and self.count >= 85 and self.count % 3 == 0:
+                    if self.count <= 95 and self.count >= 85 and self.count % 3 == 0:
                         slope = 3.7
                     
                     
