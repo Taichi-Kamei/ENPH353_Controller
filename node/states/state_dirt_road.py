@@ -27,6 +27,9 @@ class Dirt_RoadState:
         
         if self.detect_board_contour(img) is not None:
             return "Clue_Detect"
+        
+        if self.check_lake(img):
+            return "Narrow_Road"
 
         self.drive(img, self.linear_speed)
 
@@ -158,7 +161,7 @@ class Dirt_RoadState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 3.5
+                    slope = 3.7
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -201,10 +204,55 @@ class Dirt_RoadState:
         if len(contours) >= 1:
             contour = max(contours, key=cv2.contourArea)
             cnt_area = cv2.contourArea(contour)
-            #rospy.loginfo(f"detect area: {cnt_area}")
+            rospy.loginfo(f"detect area: {cnt_area}")
             threshold = 10000
 
-            if cnt_area > threshold and cnt_area < threshold + 500:
+            if cnt_area > threshold and cnt_area < threshold + 3000:
+                return contour
+            
+            threshold = 20000
+
+            if cnt_area > threshold and cnt_area < threshold + 5000:
                 return contour
         
         return None
+    
+    def check_lake(self, img):
+         
+        if img is None:
+            return False
+        
+        frame_height, frame_width, _= img.shape
+
+        top = int (frame_height * 0.55)
+        bottom = frame_height
+        left = 0
+        right = frame_width
+
+        img_cropped = img[top:bottom, left:right]
+        
+        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (115, 0, 100)
+        upper_blue = (130, 100, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+        
+        with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
+        img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
+        self.state_machine.pub_tape_cam.publish(img_a)
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            cnt_area = cv2.contourArea(contour)
+            #rospy.loginfo(f"detect area: {cnt_area}")
+            
+            threshold = 20000
+
+            if cnt_area > threshold:
+                return True
+        
+        return False

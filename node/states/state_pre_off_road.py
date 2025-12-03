@@ -9,8 +9,8 @@ class Pre_Off_RoadState:
     def __init__(self, state_machine):
         self.state_machine = state_machine
         self.bridge = CvBridge()
-        self.threshold = 176    
-        self.linear_speed = 1
+        self.threshold = 172    
+        self.linear_speed = 0.7
         self.kp = 0.02
 
         self.prev_pink_pixels = None
@@ -21,7 +21,12 @@ class Pre_Off_RoadState:
         self.state_machine.move.linear.x  = 0
         self.state_machine.move.angular.z = 3
         self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.2)
+        self.state_machine.move.linear.x  = 0.5
+        self.state_machine.move.angular.z = 0
+        self.state_machine.pub_vel.publish(self.state_machine.move)
         rospy.sleep(0.4)
+
 
 
     def run(self):
@@ -72,7 +77,7 @@ class Pre_Off_RoadState:
         filtered = []
         for (x, y, w, h), cnt in contour_data:
 
-            is_tall            = h >= 0.10 * frame_height
+            is_tall            = h >= 0.15 * frame_height
             is_not_middle      = x == 0 or x + w >= 0.95 * frame_width
 
             if ( (is_not_middle and is_tall)):
@@ -141,7 +146,7 @@ class Pre_Off_RoadState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 3.7
+                    slope = 3.2
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -231,7 +236,7 @@ class Pre_Off_RoadState:
         change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
 
 
-        if change_in_pink_pixel > 4500 and  current_pink_pixels > 28000:
+        if current_pink_pixels > 27500:
             return True
         
         self.prev_pink_pixels = current_pink_pixels

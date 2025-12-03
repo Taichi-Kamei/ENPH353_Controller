@@ -134,7 +134,7 @@ class Narrow_RoadState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 2
+                    slope = 2.0
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -189,9 +189,9 @@ class Narrow_RoadState:
             contour = max(contours, key=cv2.contourArea)
             cnt_area = cv2.contourArea(contour)
             rospy.loginfo(f"detect area: {cnt_area}")
-            threshold = 11000
+            threshold = 12500
 
-            if cnt_area > threshold and cnt_area < threshold + 1000:
+            if cnt_area > threshold and cnt_area < threshold + 2000:
                 return contour
         
         return None

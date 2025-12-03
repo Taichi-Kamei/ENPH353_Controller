@@ -18,7 +18,10 @@ class Off_RoadState:
         self.adjusted = False
         self.rough_perpendicular = False
         self.precise_perpendicular = False
+        self.lock_board = False
+        self.look_around = False
 
+        self.prev_angle = None
         self.aligned = 0
 
 
@@ -27,7 +30,6 @@ class Off_RoadState:
         self.state_machine.move.linear.x  = 0
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)
-
 
 
     def run(self):
@@ -40,28 +42,51 @@ class Off_RoadState:
             rospy.loginfo(cv2.contourArea(cnt))
         
         if self.perpendicular1 is False:
-            if angle is not None:
+
+            if angle is None and self.prev_angle is not None:
+                
+                self.state_machine.move.linear.x  = -0.5
+                self.state_machine.move.angular.z = 0
+                self.state_machine.pub_vel.publish(self.state_machine.move)
+                rospy.sleep(0.2)
+                self.state_machine.move.linear.x  = 0
+                self.state_machine.move.angular.z = 3
+                self.state_machine.pub_vel.publish(self.state_machine.move)
+                rospy.sleep(0.3)
+                self.state_machine.move.linear.x  = 0.5
+                self.state_machine.move.angular.z = 0
+                self.state_machine.pub_vel.publish(self.state_machine.move)
+                rospy.sleep(0.3)
+                self.state_machine.move.linear.x  = 0
+                self.state_machine.move.angular.z = -3
+                self.state_machine.pub_vel.publish(self.state_machine.move)
+                rospy.sleep(0.3)
+                self.state_machine.move.linear.x  = 0
+                self.state_machine.move.angular.z = 0
+            elif angle is not None:
                 error = angle - 90
                 #rospy.loginfo(error)
                 self.state_machine.move.linear.x  = 0
                 self.state_machine.move.angular.z = -0.2 * error
+                self.prev_angle = angle
+                
                 if abs(error) <= 2.7:
                     self.perpendicular1 = True
             else:
                 self.state_machine.move.linear.x  = 0
                 self.state_machine.move.angular.z = 0
-            
+
             self.state_machine.pub_vel.publish(self.state_machine.move)
 
         elif self.adjusted is False:
             self.state_machine.move.linear.x  = 1
             self.state_machine.move.angular.z = 0
             self.state_machine.pub_vel.publish(self.state_machine.move)
-            rospy.sleep(1.2)
+            rospy.sleep(1.3)
             self.state_machine.move.linear.x  = 0
             self.state_machine.move.angular.z = 3
             self.state_machine.pub_vel.publish(self.state_machine.move)
-            rospy.sleep(0.8)
+            rospy.sleep(0.9)
             self.state_machine.move.linear.x  = self.linear_speed
             self.state_machine.move.angular.z = 0
             self.state_machine.pub_vel.publish(self.state_machine.move)
@@ -74,7 +99,11 @@ class Off_RoadState:
             if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
-                error = (frame_width / 2 - 65) - cx
+
+                # shifts the frame center to the right so robot will 
+                # be little off to the right of pink tape
+                shift = 60
+                error = (frame_width / 2 - shift) - cx 
                 
                 if abs(error) <= 5:
                     self.aligned += 1
@@ -86,30 +115,76 @@ class Off_RoadState:
             self.state_machine.move.linear.x  = self.linear_speed
             self.state_machine.move.angular.z = 0
             self.state_machine.pub_vel.publish(self.state_machine.move)
-        elif cnt is not None and cv2.contourArea(cnt) >= 10000 and self.perpendicular2 is False and angle is None:
+        elif cnt is not None and cv2.contourArea(cnt) >= 9500 and self.lock_board is False:
+            self.look_around = True
+        
+        if self.look_around is True and self.lock_board is False:
             self.state_machine.move.linear.x  = 0
-            self.state_machine.move.angular.z = 1.5
+            self.state_machine.move.angular.z = 3
             self.state_machine.pub_vel.publish(self.state_machine.move)
-        elif angle is not None and self.rough_perpendicular is False:
-            self.perpendicular2 = True
-            error = -angle + 90
-            rospy.loginfo(f"error: {error}")
+            rospy.sleep(0.2)
             self.state_machine.move.linear.x  = 0
-            self.state_machine.move.angular.z = -0.15 * error
+            self.state_machine.move.angular.z = 0
             self.state_machine.pub_vel.publish(self.state_machine.move)
-            if abs(error) <= 2.7:
-                self.rough_perpendicular = True
-            # self.perpendicular = False
-        elif angle is not None and self.precise_perpendicular is False:
-            #TODO write code for state transition
-            if abs(error) <= 2.7:
-                return "Mountain"
+            self.lock_board = self.detect_board_for_transition(img)
+
+        elif self.lock_board:
+            return "Clue_Detect"
+
+        # and self.perpendicular2 is False
+        # elif angle is not None and self.rough_perpendicular is False:
+        #     self.perpendicular2 = True
+        #     error = angle
+        #     rospy.loginfo(f"error: {error}")
+        #     self.state_machine.move.linear.x  = 0
+        #     self.state_machine.move.angular.z = 0.15 * error
+        #     self.state_machine.pub_vel.publish(self.state_machine.move)
+        #     if abs(error) <= 2.7:
+        #         self.rough_perpendicular = True
+            
+        # elif angle is not None and self.precise_perpendicular is False:
+        #     #TODO write code for state transition
+        #     if abs(error) <= 2.7:
+        #         return "Mountain"
 
         return "Off_Road"
     
 
     def exit(self):
         rospy.loginfo("Exiting Off Road state")
+        self.state_machine.was_off_road_state = True
+
+
+    def detect_board_for_transition(self, img):
+         
+        if img is None:
+            return False
+        
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        lower_blue = (80, 125, 0)
+        upper_blue = (160, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            
+            cnt_area = cv2.contourArea(contour)
+            threshold = 11000
+
+            rospy.loginfo(f"area: {cnt_area}")
+
+            # if cnt_area > threshold and cnt_area < threshold + 2000:
+            #     return True
+            
+            threshold = 20000
+            if cnt_area > threshold:
+                return True
+    
+        return False
+        
 
 
     def orient_tape(self, img):

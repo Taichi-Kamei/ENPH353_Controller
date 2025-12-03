@@ -99,7 +99,6 @@ class Clue_DetectState:
                     rospy.loginfo(f"shift: {shift}, error: {abs(error)}")
                 
                     if abs(error) >= 80 and abs(error) <= 120:
-                        
                         return self.transition_from_clue[self.transition_key]
                     
                 elif self.aligned:
@@ -133,6 +132,8 @@ class Clue_DetectState:
         rospy.loginfo("Exiting Clue Detect State")
 
         self.state_machine.board_detected = 0
+        self.state_machine.was_narrow = False
+
         self.aligned = False
         self.go_close = False
         self.clue_sent = False
@@ -158,10 +159,15 @@ class Clue_DetectState:
             if self.state_machine.was_narrow_state:
                 self.state_machine.pub_time.publish(f"Team14,password,6,{value}")
                 self.transition_key = "6"
+            elif self.state_machine.was_off_road_state:
+                self.state_machine.pub_time.publish(f"Team14,password,7,{value}")
+                self.transition_key = "7"
             else:
                 self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
                 self.transition_key = f"{id}"
             
-            
             self.clue_sent = True
+
+        rospy.loginfo(self.clue_sent)
+        
             
