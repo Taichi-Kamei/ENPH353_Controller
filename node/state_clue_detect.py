@@ -46,6 +46,8 @@ class Clue_DetectState:
 
     def run(self):
 
+        img = self.state_machine.image_data
+
         M_initial = cv2.moments(self.state_machine.board_contour)
         if M_initial["m00"] > 0:
                 cx = int(M_initial["m10"] / M_initial["m00"])
@@ -53,11 +55,10 @@ class Clue_DetectState:
                 if cx > 0.5 * self.state_machine.frame_width_board:
                     self.board_position_left = False
 
-        if self.state_machine.image_data is None:
-
+        if img is None:
             return "Clue_Detect"
         
-        hsv = cv2.cvtColor(self.state_machine.image_data, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         frame_height, frame_width,_ = hsv.shape
 
@@ -103,15 +104,14 @@ class Clue_DetectState:
                     
                 elif self.aligned:
                     
-                    self.state_machine.move.linear.x  = 0.5
+                    self.state_machine.move.linear.x  = 0.3
                     self.state_machine.move.angular.z = 0
                     self.state_machine.pub_vel.publish(self.state_machine.move)
                     rospy.sleep(0.2)
                     self.state_machine.move.linear.x  = 0
                     self.state_machine.move.angular.z = 0
                     self.state_machine.pub_vel.publish(self.state_machine.move)
-                    self.clue_detect()
-
+                    self.clue_detect(img)
                 else:
                     
                     error = (frame_width / 2) - cx
@@ -134,19 +134,24 @@ class Clue_DetectState:
         self.go_close = False
 
     
-    def clue_detect(self):
-        id, value = self.clue_detector.detect_clue(self.state_machine.image_data)
+    def clue_detect(self, img):
+        
+        id, value = self.clue_detector.detect_clue(img)
 
-        board_mask = self.bridge.cv2_to_imgmsg(self.clue_detector.get_board_mask(), encoding="bgr8")
-        self.state_machine.pub_board_mask_cam.publish(board_mask)
+        if self.clue_detector.get_board_mask() is not None:
+            board_mask = self.bridge.cv2_to_imgmsg(self.clue_detector.get_board_mask(), encoding="bgr8")
+            self.state_machine.pub_board_mask_cam.publish(board_mask)
 
-        plate = self.bridge.cv2_to_imgmsg(self.clue_detector.get_plate(), encoding="bgr8")
-        self.state_machine.pub_flattened_plate_cam.publish(plate)
+        if self.clue_detector.get_plate() is not None:
+            plate = self.bridge.cv2_to_imgmsg(self.clue_detector.get_plate(), encoding="bgr8")
+            self.state_machine.pub_flattened_plate_cam.publish(plate)
 
-        letter_mask = self.bridge.cv2_to_imgmsg(self.clue_detector.get_letter_mask(), encoding="bgr8")
-        self.state_machine.pub_letters_cam.publish(letter_mask)
+        if self.clue_detector.get_letter_mask() is not None:
+            letter_mask = self.bridge.cv2_to_imgmsg(self.clue_detector.get_letter_mask(), encoding="bgr8")
+            self.state_machine.pub_letters_cam.publish(letter_mask)
 
         
         # self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
         print(f"Team14,password,{id},{value}")
-        # self.clue_sent = True
+        if value is not None:
+            self.clue_sent = True

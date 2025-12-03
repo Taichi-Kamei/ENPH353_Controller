@@ -172,9 +172,9 @@ class StateMachine:
         contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
 
-        with_contour = cv2.drawContours(self.image_data, contours, -1, (0,255,0), 5)
-        img_a = self.bridge.cv2_to_imgmsg(with_contour, encoding="bgr8")
-        self.pub_tape_cam.publish(img_a)
+        # with_contour = cv2.drawContours(self.image_data, contours, -1, (0,255,0), 5)
+        # img_a = self.bridge.cv2_to_imgmsg(with_contour, encoding="bgr8")
+        # self.pub_tape_cam.publish(img_a)
 
         if len(contours) >= 1:
             contour = max(contours, key=cv2.contourArea)
