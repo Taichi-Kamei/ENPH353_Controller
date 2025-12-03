@@ -75,7 +75,9 @@ class Clue_DetectState:
 
         if len(contours) >= 1:
             contour = max(contours, key=cv2.contourArea)
+            cnt_area = cv2.contourArea(contour)
             M = cv2.moments(contour)
+
 
             if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
@@ -151,7 +153,9 @@ class Clue_DetectState:
             self.state_machine.pub_letters_cam.publish(letter_mask)
 
         
-        # self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
-        print(f"Team14,password,{id},{value}")
+        self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
+        rospy.loginfo(value)
+        rospy.loginfo(f"Team14,password,{id},{value}")
+
         if value is not None:
             self.clue_sent = True
