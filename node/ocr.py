@@ -84,6 +84,12 @@ class OCR:
             # Get the output tensor
             output_data = self.interpreter.get_tensor(self.output_details[0]['index'])
             
+            # Debug: print top k predictions
+            k = 5
+            probs = output_data.flatten()
+            top = probs.argsort()[-k:][::-1]
+            print(f"DEBUG: {', '.join(f'{self.class_names[i]}={probs[i]:.5f}' for i in top)}")
+            
             # Get prediction
             prediction = np.argmax(output_data[0])
             confidence = np.max(output_data[0])
