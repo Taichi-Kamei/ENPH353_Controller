@@ -2,52 +2,54 @@ import cv2
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
 
-class Pre_TruckState:
+class Post_RoundaboutState:
 
     def __init__(self, state_machine):
         self.state_machine = state_machine
         self.bridge = CvBridge()
-        self.threshold = 160    
-        self.linear_speed = 1.2
-        self.kp = 0.05
+        self.threshold = 160
+        self.linear_speed = 0.95
+        self.kp = 0.04
+
+        self.count = 0
+        self.prev_pink_pixels = None
+        self.turned_right = False
+        self.second_left_turn = False
 
 
     def enter(self):
-        rospy.loginfo("Entering Pre Truck State")
+        rospy.loginfo("Entering Post Roundabout State")
+        self.state_machine.move.linear.x  = 0
+        self.state_machine.move.angular.z = 5
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.4)
+
 
 
     def run(self):
-        
+              
         img = self.state_machine.image_data
 
+        self.count += 1
+
         if img is None:
-            return "Pre_Truck"
-
-        cnt_data, frame_height, frame_width = self.get_contour_data(img)
-
-        if self.check_intersection(cnt_data, frame_height, frame_width):
-            return "Truck"
+            return "Post_Roundabout"
         
-        self.drive(cnt_data, frame_height, frame_width, self.linear_speed)
+        if self.detect_pink(img):
+            return "Dirt_Road"
+        
+        if self.detect_board_contour(img) is not None:
+            return "Clue_Detect"
 
-        return "Pre_Truck"
+        self.drive(img, self.linear_speed)
+
+        return "Post_Roundabout"
 
 
     def exit(self):
-        rospy.loginfo("Exiting Pre Truck State")
-
-    
-    def check_intersection(self, contour_data, frame_height, frame_width):
-        
-        if len(contour_data) >= 1:
-
-            highest_contour = min(contour_data, key=lambda x: x[0][1])
-            (_,y,w,h),_ = highest_contour
-
-            if y + h <= 0.2 * frame_height and h < 0.05 * frame_height and w >= 0.6 * frame_width:
-                return True
-
-        return False
+        rospy.loginfo("Exiting Post Roundabout State")
+        self.turned_right = False
+        self.second_left_turn = False
 
     
     def get_contour_data(self, img):
@@ -80,8 +82,11 @@ class Pre_TruckState:
         return contour_data, frame_height, frame_width
     
 
-    def drive(self, contour_data, frame_height, frame_width, speed):
+    def drive(self, img, speed):
+        
+        contour_data,frame_height, frame_width = self.get_contour_data(img)
 
+        # Sorts from right to left
         contour_data.sort(key=lambda x: x[0][0], reverse = True)
 
         if len(contour_data) >= 2:
@@ -118,9 +123,9 @@ class Pre_TruckState:
                         center_shift = 0
                     
                     error = center_shift + (frame_width / 2.0) - cx_center
-                    if abs(error) < 100:
+                    if abs(error) < 110:
                         self.state_machine.move.linear.x  = 0.8
-                        self.state_machine.move.angular.z = 0
+                        self.state_machine.move.angular.z = 0.1
 
         elif len(contour_data) == 1:
 
@@ -132,12 +137,13 @@ class Pre_TruckState:
                 cy = int(M["m01"] / M["m00"])
 
                 if (y + h == frame_height and y <= 0.7 * frame_height and (x <= 0.2 * frame_width or x >= 0.75 * frame_width)) or (x == 0 or x + w == frame_width):
-                    #rospy.loginfo("single")
+                    
+                    slope = 1.3
 
-                    # The center of the lane shifts significantly from the center of the frame during steep curve
-                    # I did "Required shift from frame center proportional to Cy" and it worked well
-                    # (slope value was experimentally chosen)
-                    slope = 2.7
+                    if self.count >= 50:
+                        rospy.loginfo("when's this")
+                        slope = 2.3
+
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -151,3 +157,63 @@ class Pre_TruckState:
                     self.state_machine.move.angular.z = 0
 
         self.state_machine.pub_vel.publish(self.state_machine.move)
+
+
+    def detect_board_contour(self, img):
+         
+        if img is None:
+            return None
+        
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (105, 150, 50)
+        upper_blue = (120, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            cnt_area = cv2.contourArea(contour)
+            rospy.loginfo(f"detect area: {cnt_area}")
+            threshold = 12000
+
+            with_contours = cv2.drawContours(img, contour, -1, (0,255,0), 5)
+            img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
+            self.state_machine.pub_tape_cam.publish(img_a)
+
+            if cnt_area > threshold and cnt_area < threshold + 1000:
+                return contour
+        
+        return None
+
+    def detect_pink(self, img):
+        if img is None:
+            return
+        
+        frame_height, frame_width, _ = img.shape
+
+        top = int (frame_height * 0.75)
+        bottom = int (frame_height * 0.95)
+        left = int (frame_width * 0.4)
+        right = frame_width
+
+        img_cropped = img[top:bottom, left:right]
+        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+        lower_pink = (130, 100, 200)
+        upper_pink = (170, 255, 255)
+
+        mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
+
+        current_pink_pixels = int(mask_pink.sum() / 255)
+        if self.prev_pink_pixels is None:
+                self.prev_pink_pixels = current_pink_pixels
+                return False
+        
+        change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
+                        
+        if change_in_pink_pixel > 4500 and  current_pink_pixels > 25000:
+            return True
