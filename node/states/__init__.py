@@ -1,5 +1,6 @@
 from .state_clue_detect import Clue_DetectState
 from .state_paved_road import Paved_RoadState
+from .state_steep_curve import Steep_CurveState
 from .state_dirt_road import Dirt_RoadState
 from .state_narrow_road import Narrow_RoadState
 from .state_pedestrian import PedestrianState
@@ -17,6 +18,7 @@ from .state_idle import Idle
 __all__ = [
     'Clue_DetectState',
     'Paved_RoadState',
+    'Steep_CurveState',
     'Dirt_RoadState',
     'Narrow_RoadState',
     'PedestrianState',

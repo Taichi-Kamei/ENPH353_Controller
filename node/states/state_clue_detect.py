@@ -16,14 +16,14 @@ class Clue_DetectState:
         self.clue_sent = False
         self.board_position_left = True
 
-        self.linear_speed = 1
+        self.linear_speed = 2
         self.kp = 0.02
 
         self.transition_key = None
         self.transition_from_clue = {
            "1": "Paved_Road",
-           "2": "Paved_Road",
-           "3": "Truck",
+           "2": "Steep_Curve",
+           "3": "Pre_Truck",
            "4": "Roundabout",
            "5": "Narrow_Road",
            "6": "Pre_Off_Road",
@@ -42,6 +42,7 @@ class Clue_DetectState:
         self.state_machine.move.linear.x  = 0
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.2)
 
 
     def run(self):
@@ -84,7 +85,7 @@ class Clue_DetectState:
 
                 if self.aligned and self.clue_sent:
                     
-                    slope = 0.4
+                    slope = 0.5
 
                     shift = slope * cy / 2
                     if self.board_position_left:
@@ -115,7 +116,10 @@ class Clue_DetectState:
                     
                     error = (frame_width / 2) - cx
 
-                    if abs(error) <= 20:
+                    if abs(error) <= 15:
+                        self.state_machine.move.linear.x  = 0
+                        self.state_machine.move.angular.z = 0
+                        self.state_machine.pub_vel.publish(self.state_machine.move)
                         self.aligned = True
                     else:
                         self.state_machine.move.linear.x  = 0

@@ -151,3 +151,5 @@ class Pre_TruckState:
                     self.state_machine.move.angular.z = 0
 
         self.state_machine.pub_vel.publish(self.state_machine.move)
+    
+    
