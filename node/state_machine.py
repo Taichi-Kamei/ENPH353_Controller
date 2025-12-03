@@ -63,7 +63,7 @@ class StateMachine:
         }
 
         
-        self.current_state = self.states["Paved_Road"]
+        self.current_state = self.states["Pre_Truck"]
         self.current_state.enter()
 
 

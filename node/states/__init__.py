@@ -1,4 +1,3 @@
-# Import all state classes into the package namespace for easy access
 from .state_clue_detect import Clue_DetectState
 from .state_paved_road import Paved_RoadState
 from .state_dirt_road import Dirt_RoadState
@@ -12,8 +11,7 @@ from .state_mountain import MountainState
 from .state_truck import TruckState
 from .state_idle import Idle
 
-# You can define __all__ if you want to control what is imported 
-# when someone runs 'from states import *'
+
 __all__ = [
     'Clue_DetectState',
     'Paved_RoadState',

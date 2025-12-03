@@ -13,31 +13,45 @@ class Pre_TruckState:
 
 
     def enter(self):
-        rospy.loginfo("Entering Paved Road State")
+        rospy.loginfo("Entering Pre Truck State")
 
 
     def run(self):
         
         img = self.state_machine.image_data
-        
-    
-        if self.state_machine.red_count == 1:
-            return "Pedestrian"
-        
-        if self.state_machine.board_contour is not None:
-            return "Clue_Detect"
-        
-        self.drive(img, self.linear_speed)
 
-        return "Paved_Road"
+        if img is None:
+            return "Pre_Truck"
+
+        cnt_data, frame_height, frame_width = self.get_contour_data(img)
+
+
+        if self.check_intersection(cnt_data, frame_height, frame_width):
+            return "Truck"
+        
+        self.drive(cnt_data, frame_height, frame_width, self.linear_speed)
+
+        return "Pre_Truck"
 
 
     def exit(self):
-        rospy.loginfo("Exiting Paved Road State")
-    
+        rospy.loginfo("Exiting Pre Truck State")
 
-    def drive(self, img, speed):
+    
+    def check_intersection(self, contour_data, frame_height, frame_width):
         
+        if len(contour_data) >= 1:
+
+            highest_contour = min(contour_data, key=lambda x: x[0][1])
+            (_,y,w,h),_ = highest_contour
+
+            if y + h <= 0.2 * frame_height and h < 0.05 * frame_height and w >= 0.6 * frame_width:
+                return True
+
+        return False
+
+    
+    def get_contour_data(self, img):
         if img is None:
             return
 
@@ -49,16 +63,26 @@ class Pre_TruckState:
         right = frame_width
 
         img_cropped = img[top:bottom, left:right]
+        cropped_width, cropped_height,_ = img_cropped.shape
         img_gray = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2GRAY)
         _, img_bin = cv2.threshold(img_gray, self.threshold, 255, cv2.THRESH_BINARY)
         
         contours, hierarchy = cv2.findContours(img_bin, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
         contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 1300]
-        #contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0], reverse=True)
-
         contour_data = [(cv2.boundingRect(c), c) for c in contours]
-        # Sorts from right to left
+
+        for (x, y, w, h), cnt in contour_data:
+            cv2.rectangle(img_cropped, (x, y), (x + w, y + h), (0, 255, 0), 3)
+        with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
+        img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
+        self.state_machine.pub_processed_cam.publish(img_a)
+    
+        return contour_data, frame_height, frame_width
+    
+
+    def drive(self, contour_data, frame_height, frame_width, speed):
+
         contour_data.sort(key=lambda x: x[0][0], reverse = True)
 
         if len(contour_data) >= 2:
@@ -126,12 +150,5 @@ class Pre_TruckState:
                 else:
                     self.state_machine.move.linear.x  = speed
                     self.state_machine.move.angular.z = 0
-        
-
-        for (x, y, w, h), cnt in contour_data:
-            cv2.rectangle(img_cropped, (x, y), (x + w, y + h), (0, 255, 0), 3)
-        with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
-        img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
-        self.state_machine.pub_processed_cam.publish(img_a)
 
         self.state_machine.pub_vel.publish(self.state_machine.move)
