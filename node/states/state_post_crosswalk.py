@@ -24,7 +24,7 @@ class Post_CrosswalkState:
         
         img = self.state_machine.image_data
 
-        if self.detect_board_contour is not None:
+        if self.detect_board_contour(img) is not None:
             return "Clue_Detect"
         
         if self.count >= 140:
