@@ -83,6 +83,7 @@ class OCR:
 
             # Get the output tensor
             output_data = self.interpreter.get_tensor(self.output_details[0]['index'])
+            print(f"DEBUG: {output_data}")
             
             # Get prediction
             prediction = np.argmax(output_data[0])
