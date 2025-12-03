@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-# from Levenshtein import ratio
+from rapidfuzz import process, fuzz
 
 from ocr import OCR
 
@@ -81,7 +81,10 @@ class ClueDetector:
             
             if self.latest_plate is not None:
                 self.latest_letter_mask, self.latest_key, self.latest_value = self.extract_letters(self.latest_plate)
-                self.latest_id = self.ids.get(self.latest_key, self.latest_id + 1)
+                best_match, score, index = process.extractOne(self.latest_key, self.ids.keys())
+
+                
+                self.latest_id = self.ids.get(best_match, self.latest_id + 1)
                 
                 return self.latest_id, self.latest_value
 
