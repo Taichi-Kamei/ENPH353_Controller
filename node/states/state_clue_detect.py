@@ -26,7 +26,7 @@ class Clue_DetectState:
            "3": "Truck",
            "4": "Roundabout",
            "5": "Narrow_Road",
-           "6": "Narrow_Road",
+           "6": "Pre_Off_Road",
            "7": "Mountain",
            "8": "Idle"   
         }
@@ -151,7 +151,13 @@ class Clue_DetectState:
             self.state_machine.pub_letters_cam.publish(letter_mask)
 
         if value is not None:
-            self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
-            self.transition_key = f"{id}"
+            if self.state_machine.was_narrow_state:
+                self.state_machine.pub_time.publish(f"Team14,password,6,{value}")
+                self.transition_key = "6"
+            else:
+                self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
+                self.transition_key = f"{id}"
+            
+            
             self.clue_sent = True
             

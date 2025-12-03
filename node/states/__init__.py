@@ -7,6 +7,7 @@ from .state_post_crosswalk import Post_CrosswalkState
 from .state_pre_truck import Pre_TruckState
 from .state_roundabout import RoundaboutState
 from .state_post_roundabout import Post_RoundaboutState
+from .state_pre_off_road import Pre_Off_RoadState
 from .state_off_road import Off_RoadState
 from .state_mountain import MountainState
 from .state_truck import TruckState
@@ -23,6 +24,7 @@ __all__ = [
     'Pre_TruckState',
     'RoundaboutState',
     'Post_RoundaboutState',
+    'Pre_Off_RoadState',
     'Off_RoadState',
     'MountainState',
     'TruckState',

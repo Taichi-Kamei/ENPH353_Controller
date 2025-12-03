@@ -4,7 +4,7 @@ import rospy
 from cv_bridge import CvBridge, CvBridgeError
 
 
-class Narrow_RoadState:
+class Pre_Off_RoadState:
 
     def __init__(self, state_machine):
         self.state_machine = state_machine
@@ -17,7 +17,11 @@ class Narrow_RoadState:
     
 
     def enter(self):
-        rospy.loginfo("Entering Narrow Road state")
+        rospy.loginfo("Entering Pre Off Road state")
+        self.state_machine.move.linear.x  = 0
+        self.state_machine.move.angular.z = 3
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.4)
 
 
     def run(self):
@@ -32,12 +36,15 @@ class Narrow_RoadState:
 
         self.drive(img, self.linear_speed)
 
-        return "Narrow_Road"
+        return "Pre_Off_Road"
     
 
     def exit(self):
-        rospy.loginfo("Exiting Narrow Road state")
-        self.state_machine.was_narrow_state = True
+        rospy.loginfo("Exiting Pre Off Road state")
+        self.state_machine.move.linear.x  = -0.3
+        self.state_machine.move.angular.z = 0
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.3)
 
 
     def drive(self, img, speed):
@@ -134,7 +141,7 @@ class Narrow_RoadState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 2
+                    slope = 3.7
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
@@ -189,9 +196,9 @@ class Narrow_RoadState:
             contour = max(contours, key=cv2.contourArea)
             cnt_area = cv2.contourArea(contour)
             rospy.loginfo(f"detect area: {cnt_area}")
-            threshold = 11000
+            threshold = 20000
 
-            if cnt_area > threshold and cnt_area < threshold + 1000:
+            if cnt_area > threshold and cnt_area < threshold + 500:
                 return contour
         
         return None
