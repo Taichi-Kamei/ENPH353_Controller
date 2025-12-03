@@ -13,7 +13,7 @@ class Narrow_RoadState:
         self.linear_speed = 1
         self.kp = 0.02
 
-        self.old_cx = None
+        self.prev_pink_pixels = None
     
 
     def enter(self):
@@ -26,6 +26,9 @@ class Narrow_RoadState:
 
         if self.detect_pink(img):
             return "Off_Road"
+        
+        if self.detect_board_contour(img) is not None:
+            return "Clue_Detect"
 
         self.drive(img, self.linear_speed)
 
@@ -34,6 +37,7 @@ class Narrow_RoadState:
 
     def exit(self):
         rospy.loginfo("Exiting Narrow Road state")
+        self.state_machine.was_narrow_state = True
 
 
     def drive(self, img, speed):
@@ -58,10 +62,19 @@ class Narrow_RoadState:
         contour_data = [(cv2.boundingRect(c), c) for c in contours]
         contour_data.sort(key=lambda x: x[0][0])
 
-        if len(contour_data) >= 2:
+        filtered = []
+        for (x, y, w, h), cnt in contour_data:
+
+            is_tall            = h >= 0.10 * frame_height
+            is_not_middle      = x == 0 or x + w >= 0.95 * frame_width
+
+            if ( (is_not_middle and is_tall)):
+                filtered.append(((x, y, w, h), cnt))              
+
+        if len(filtered) >= 2:
             
-            (xR,yR,wR,hR), cnt_right = contour_data[0]
-            (xL,yL,wL,hL), cnt_left = contour_data[-1]
+            (xR,yR,wR,hR), cnt_right = filtered[0]
+            (xL,yL,wL,hL), cnt_left = filtered[-1]
 
             M_left = cv2.moments(cnt_left)
             M_right = cv2.moments(cnt_right)
@@ -100,9 +113,9 @@ class Narrow_RoadState:
                             self.state_machine.move.linear.x  = speed
                             self.state_machine.move.angular.z = self.kp * error
 
-        elif len(contour_data) == 1:
+        elif len(filtered) == 1:
 
-            (x,y,w,h), cnt = contour_data[0]
+            (x,y,w,h), cnt = filtered[0]
 
             is_bottom_touching = (y + h) >= frame_height - 2
             is_high_enough     = y <= 0.7 * frame_height
@@ -145,9 +158,48 @@ class Narrow_RoadState:
         self.state_machine.pub_vel.publish(self.state_machine.move)
 
 
+    def detect_board_contour(self, img):
+         
+        if img is None:
+            return None
+        
+        frame_height, frame_width,_ = img.shape
+
+        top = int (frame_height * 0.4)
+        bottom = frame_height
+        left = 0
+        right = frame_width
+
+        img_cropped = img[top:bottom, left:right]
+        
+        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+        lower_blue = (105, 100, 50)
+        upper_blue = (120, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+        
+
+        with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
+        img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
+        self.state_machine.pub_tape_cam.publish(img_a)
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            cnt_area = cv2.contourArea(contour)
+            rospy.loginfo(f"detect area: {cnt_area}")
+            threshold = 11000
+
+            if cnt_area > threshold and cnt_area < threshold + 1000:
+                return contour
+        
+        return None
+
+
     def detect_pink(self, img):
         if img is None:
-            return
+            return False
         
         frame_height, frame_width, _ = img.shape
 
@@ -170,7 +222,12 @@ class Narrow_RoadState:
                 return False
         
         change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
-                        
-        if change_in_pink_pixel > 4500 and  current_pink_pixels > 25000:
+
+
+        if change_in_pink_pixel > 4500 and  current_pink_pixels > 28000:
             return True
+        
+        self.prev_pink_pixels = current_pink_pixels
+
+        return False
 

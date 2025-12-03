@@ -2,7 +2,7 @@ import cv2
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
 
-class RoundaboutState:
+class Post_RoundaboutState:
 
     def __init__(self, state_machine):
         self.state_machine = state_machine
@@ -11,34 +11,44 @@ class RoundaboutState:
         self.linear_speed = 0.95
         self.kp = 0.04
 
+        self.count = 0
         self.prev_pink_pixels = None
+        self.turned_right = False
         self.second_left_turn = False
 
 
     def enter(self):
-        rospy.loginfo("Entering Roundabout State")
+        rospy.loginfo("Entering Post Roundabout State")
+        self.state_machine.move.linear.x  = 0
+        self.state_machine.move.angular.z = 5
+        self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.4)
+
 
 
     def run(self):
               
         img = self.state_machine.image_data
 
+        self.count += 1
+
         if img is None:
-            return "Roundabout"
+            return "Post_Roundabout"
         
         if self.detect_pink(img):
             return "Dirt_Road"
         
-        if self.second_left_turn:
-            return "Post_Roundabout"
+        if self.detect_board_contour(img) is not None:
+            return "Clue_Detect"
 
         self.drive(img, self.linear_speed)
 
-        return "Roundabout"
+        return "Post_Roundabout"
 
 
     def exit(self):
-        rospy.loginfo("Exiting Roundabout State")
+        rospy.loginfo("Exiting Post Roundabout State")
+        self.turned_right = False
         self.second_left_turn = False
 
     
@@ -128,22 +138,17 @@ class RoundaboutState:
 
                 if (y + h == frame_height and y <= 0.7 * frame_height and (x <= 0.2 * frame_width or x >= 0.75 * frame_width)) or (x == 0 or x + w == frame_width):
                     
-                    slope = 1.7
+                    slope = 1.3
 
-                    if self.second_left_turn:
-                        slope = 3
+                    if self.count >= 50:
+                        rospy.loginfo("when's this")
+                        slope = 2.3
 
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 
                     center_shift = slope * cy
                     error = center_shift + (frame_width / 2.0) - cx
-
-                    rospy.loginfo(error)
-                    if self.detect_board_for_transition(img):
-                        self.second_left_turn = True
-                        rospy.loginfo("2nd turn")
-                        
 
                     self.state_machine.move.linear.x  = self.linear_speed
                     self.state_machine.move.angular.z = self.kp * error
@@ -154,32 +159,35 @@ class RoundaboutState:
         self.state_machine.pub_vel.publish(self.state_machine.move)
 
 
-    def detect_board_for_transition(self, img):
+    def detect_board_contour(self, img):
          
         if img is None:
-            return False
+            return None
         
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        lower_blue = (80, 125, 0)
-        upper_blue = (160, 255, 255)
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (105, 150, 50)
+        upper_blue = (120, 255, 255)
         mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
         contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
                                        cv2.CHAIN_APPROX_SIMPLE)
 
         if len(contours) >= 1:
             contour = max(contours, key=cv2.contourArea)
-            
             cnt_area = cv2.contourArea(contour)
-            threshold = 4200
+            rospy.loginfo(f"detect area: {cnt_area}")
+            threshold = 12000
 
-            rospy.loginfo(f"area: {cnt_area}")
+            with_contours = cv2.drawContours(img, contour, -1, (0,255,0), 5)
+            img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
+            self.state_machine.pub_tape_cam.publish(img_a)
 
-            if cnt_area > threshold and cnt_area < threshold + 2000:
-                return True
+            if cnt_area > threshold and cnt_area < threshold + 1000:
+                return contour
         
-        return False
-
+        return None
 
     def detect_pink(self, img):
         if img is None:

@@ -9,32 +9,29 @@ class Clue_DetectState:
 
     def __init__(self, state_machine):
         self.state_machine = state_machine
+        self.bridge = CvBridge()
+        self.clue_detector = ClueDetector()
 
-        self.linear_speed = 1
-        self.kp = 0.02
-        
         self.aligned = False
         self.clue_sent = False
-
         self.board_position_left = True
 
-        self.transition_key = None
+        self.linear_speed = 2
+        self.kp = 0.02
 
-        #Kinda chopped since some prev_prev_state is Clue_Detect state and some aren't but deal with it
+        self.transition_key = None
         self.transition_from_clue = {
            "1": "Paved_Road",
-           "2": "Paved_Road",
-           "3": "Truck",
+           "2": "Steep_Curve",
+           "3": "Pre_Truck",
            "4": "Roundabout",
            "5": "Narrow_Road",
-           "6": "Narrow_Road",
+           "6": "Pre_Off_Road",
            "7": "Mountain",
            "8": "Idle"   
         }
 
-        self.bridge = CvBridge()
-        self.clue_detector = ClueDetector()
-
+        
     def enter(self):
         rospy.loginfo("Entering Clue Detect state")
 
@@ -45,6 +42,8 @@ class Clue_DetectState:
         self.state_machine.move.linear.x  = 0
         self.state_machine.move.angular.z = 0
         self.state_machine.pub_vel.publish(self.state_machine.move)
+        rospy.sleep(0.2)
+
 
     def run(self):
 
@@ -80,15 +79,13 @@ class Clue_DetectState:
             cnt_area = cv2.contourArea(contour)
             M = cv2.moments(contour)
 
-
             if M["m00"] > 0:
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
 
-
                 if self.aligned and self.clue_sent:
                     
-                    slope = 0.4
+                    slope = 0.5
 
                     shift = slope * cy / 2
                     if self.board_position_left:
@@ -119,7 +116,10 @@ class Clue_DetectState:
                     
                     error = (frame_width / 2) - cx
 
-                    if abs(error) <= 20:
+                    if abs(error) <= 15:
+                        self.state_machine.move.linear.x  = 0
+                        self.state_machine.move.angular.z = 0
+                        self.state_machine.pub_vel.publish(self.state_machine.move)
                         self.aligned = True
                     else:
                         self.state_machine.move.linear.x  = 0
@@ -154,11 +154,14 @@ class Clue_DetectState:
             letter_mask = self.bridge.cv2_to_imgmsg(self.clue_detector.get_letter_mask(), encoding="bgr8")
             self.state_machine.pub_letters_cam.publish(letter_mask)
 
-        
-        self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
-        # rospy.loginfo(value)
-        # rospy.loginfo(f"Team14,password,{id},{value}")
-
         if value is not None:
+            if self.state_machine.was_narrow_state:
+                self.state_machine.pub_time.publish(f"Team14,password,6,{value}")
+                self.transition_key = "6"
+            else:
+                self.state_machine.pub_time.publish(f"Team14,password,{id},{value}")
+                self.transition_key = f"{id}"
+            
+            
             self.clue_sent = True
-            self.transition_key = f"{id}"
+            
