@@ -13,7 +13,7 @@ class Narrow_RoadState:
         self.linear_speed = 1
         self.kp = 0.02
 
-        self.old_cx = None
+        self.prev_pink_pixels = None
     
 
     def enter(self):
@@ -26,6 +26,9 @@ class Narrow_RoadState:
 
         if self.detect_pink(img):
             return "Off_Road"
+        
+        if self.detect_board_contour(img) is not None:
+            return "Clue_Detect"
 
         self.drive(img, self.linear_speed)
 
@@ -145,9 +148,48 @@ class Narrow_RoadState:
         self.state_machine.pub_vel.publish(self.state_machine.move)
 
 
+    def detect_board_contour(self, img):
+         
+        if img is None:
+            return None
+        
+        frame_height, frame_width,_ = img.shape
+
+        top = int (frame_height * 0.4)
+        bottom = frame_height
+        left = 0
+        right = frame_width
+
+        img_cropped = img[top:bottom, left:right]
+        
+        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+
+        lower_blue = (105, 100, 50)
+        upper_blue = (120, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+        
+
+        with_contours = cv2.drawContours(img_cropped, contours, -1, (0,255,0), 5)
+        img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
+        self.state_machine.pub_tape_cam.publish(img_a)
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            cnt_area = cv2.contourArea(contour)
+            rospy.loginfo(f"detect area: {cnt_area}")
+            threshold = 20000
+
+            if cnt_area > threshold and cnt_area < threshold + 500:
+                return contour
+        
+        return None
+
+
     def detect_pink(self, img):
         if img is None:
-            return
+            return False
         
         frame_height, frame_width, _ = img.shape
 
@@ -170,7 +212,13 @@ class Narrow_RoadState:
                 return False
         
         change_in_pink_pixel = current_pink_pixels - self.prev_pink_pixels
+
+
                         
         if change_in_pink_pixel > 4500 and  current_pink_pixels > 25000:
             return True
+        
+        self.prev_pink_pixels = current_pink_pixels
+
+        return False
 

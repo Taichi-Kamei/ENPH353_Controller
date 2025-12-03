@@ -24,6 +24,9 @@ class Dirt_RoadState:
 
         if self.state_machine.pink_count == 2:
             return "Narrow_Road"
+        
+        if self.detect_board_contour(img) is not None:
+            return "Clue_Detect"
 
         self.drive(img, self.linear_speed)
 
@@ -179,3 +182,29 @@ class Dirt_RoadState:
 
         self.state_machine.pub_vel.publish(self.state_machine.move)
     
+
+    def detect_board_contour(self, img):
+         
+        if img is None:
+            return None
+        
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        frame_height, frame_width,_ = hsv.shape
+
+        lower_blue = (80, 125, 0)
+        upper_blue = (160, 255, 255)
+        mask_board = cv2.inRange(hsv, lower_blue, upper_blue)
+        contours, hierarchy = cv2.findContours(mask_board, cv2.RETR_TREE,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+
+        if len(contours) >= 1:
+            contour = max(contours, key=cv2.contourArea)
+            cnt_area = cv2.contourArea(contour)
+            #rospy.loginfo(f"detect area: {cnt_area}")
+            threshold = 10000
+
+            if cnt_area > threshold and cnt_area < threshold + 500:
+                return contour
+        
+        return None
