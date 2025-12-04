@@ -139,7 +139,7 @@ class RoundaboutState:
                     center_shift = slope * cy
                     error = center_shift + (frame_width / 2.0) - cx
 
-                    rospy.loginfo(error)
+                    #rospy.loginfo(error)
                     if self.detect_board_for_transition(img):
                         self.second_left_turn = True
                         rospy.loginfo("2nd turn")

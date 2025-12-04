@@ -27,7 +27,7 @@ class Steep_CurveState:
         
         img = self.state_machine.image_data
         
-        if self.detect_board_contour(img) is not None:
+        if self.detect_board_contour(img) is not None and self.state_machine.clue_time >= 20:
             return "Clue_Detect"
         
         self.drive(img, self.linear_speed)

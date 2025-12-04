@@ -26,6 +26,8 @@ class StateMachine:
         self.pink_count = 0
         self.clue_board = 0
 
+        self.clue_time = 0
+
         self.board_left = True
 
         self.prev_red_pixels = None
@@ -84,6 +86,7 @@ class StateMachine:
         try:
             self.image_data = self.bridge.imgmsg_to_cv2(data, "bgr8")
             self.detect_tape()
+            self.clue_time += 1
             if self.board_detected >= 10:
                 self.board_contour, self.frame_width_board = self.detect_board_contour()
             else:
@@ -146,9 +149,9 @@ class StateMachine:
                 # rospy.loginfo("wow")
                 self.during_cross = True
         
-        rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
+        #rospy.loginfo(f"delta: {change_in_red_pixel}, red pixels: {current_red_pixels}")
                         
-        if change_in_red_pixel > 0 and current_red_pixels > 18000:
+        if change_in_red_pixel > 2500 and current_red_pixels > 17000:
                 self.red_count = 1
                 if self.cross_walk is True:
                     self.red_count = 2
@@ -190,7 +193,7 @@ class StateMachine:
                  
     def run(self):
         rate = rospy.Rate(20)
-        # self.pub_time.publish("Team14,password,0,START")
+        self.pub_time.publish("Team14,password,0,START")
 
         while not rospy.is_shutdown():
             self.next_state = self.states[self.current_state.run()]

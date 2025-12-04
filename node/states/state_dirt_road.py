@@ -25,7 +25,7 @@ class Dirt_RoadState:
         if self.state_machine.pink_count == 2:
             return "Narrow_Road"
         
-        if self.detect_board_contour(img) is not None:
+        if self.detect_board_contour(img) is not None and self.state_machine.clue_time >= 10:
             return "Clue_Detect"
         
         if self.check_lake(img):
@@ -162,7 +162,7 @@ class Dirt_RoadState:
                     # The center of the lane shifts significantly from the center of the frame during steep curve
                     # I did "Required shift from frame center proportional to Cy" and it worked well
                     # (slope value was experimentally chosen)
-                    slope = 3.7
+                    slope = 3.5
                     if cx <= frame_width * 0.5:
                         slope = -1 * slope
 

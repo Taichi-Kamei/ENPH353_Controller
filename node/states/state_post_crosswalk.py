@@ -8,7 +8,7 @@ class Post_CrosswalkState:
         self.state_machine = state_machine
         self.bridge = CvBridge()
         self.threshold = 160    
-        self.linear_speed = 1.1
+        self.linear_speed = 1.2
         self.kp = 0.03
 
         self.count = 0
@@ -24,7 +24,7 @@ class Post_CrosswalkState:
         
         img = self.state_machine.image_data
 
-        if self.detect_board_contour(img) is not None:
+        if self.detect_board_contour(img) is not None and self.state_machine.clue_time >= 10:
             return "Clue_Detect"
         
         if self.count >= 140:
@@ -165,7 +165,7 @@ class Post_CrosswalkState:
                     slope = 1.4
                     #rospy.loginfo(self.count)
 
-                    if self.count <= 95 and self.count >= 85 and self.count % 3 == 0:
+                    if self.count <= 95 and self.count >= 85 and self.count % 2 == 0:
                         slope = 3.7
                     
                     
@@ -217,7 +217,7 @@ class Post_CrosswalkState:
 
             
             threshold = 29000
-            if cnt_area > threshold and cnt_area < threshold + 3000:
+            if cnt_area > threshold and cnt_area < threshold + 5000:
                 return contour
         
         return None

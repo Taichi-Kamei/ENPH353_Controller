@@ -23,7 +23,7 @@ class Paved_RoadState:
         if self.state_machine.red_count == 1:
             return "Pedestrian"
         
-        if self.detect_board_contour(img) is not None:
+        if self.detect_board_contour(img) is not None and self.state_machine.clue_time >= 10:
             return "Clue_Detect"
         
         self.drive(img, self.linear_speed)
@@ -161,8 +161,8 @@ class Paved_RoadState:
             img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
             self.state_machine.pub_tape_cam.publish(img_a)
 
-            threshold = 22000
-            if cnt_area > threshold and cnt_area < threshold + 2000:
+            threshold = 21500
+            if cnt_area > threshold and cnt_area < threshold + 3000:
                 return contour
             
             # threshold = 29000

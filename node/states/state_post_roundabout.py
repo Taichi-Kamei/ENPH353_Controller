@@ -38,7 +38,7 @@ class Post_RoundaboutState:
         if self.detect_pink(img):
             return "Dirt_Road"
         
-        if self.detect_board_contour(img) is not None:
+        if self.detect_board_contour(img) is not None and self.state_machine.clue_time >= 50:
             return "Clue_Detect"
 
         self.drive(img, self.linear_speed)
@@ -140,7 +140,7 @@ class Post_RoundaboutState:
                     
                     slope = 1.3
 
-                    if self.count >= 50:
+                    if self.count >= 60:
                         rospy.loginfo("when's this")
                         slope = 2.3
 
@@ -184,7 +184,7 @@ class Post_RoundaboutState:
             img_a = self.bridge.cv2_to_imgmsg(with_contours, encoding="bgr8")
             self.state_machine.pub_tape_cam.publish(img_a)
 
-            if cnt_area > threshold and cnt_area < threshold + 1000:
+            if cnt_area > threshold:
                 return contour
         
         return None

@@ -146,6 +146,8 @@ class Clue_DetectState:
     def exit(self):
         rospy.loginfo("Exiting Clue Detect State")
 
+        self.state_machine.clue_time = 0
+
         self.state_machine.board_detected = 0
         self.state_machine.was_narrow_state = False
 
