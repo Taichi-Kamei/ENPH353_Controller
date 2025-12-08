@@ -3,7 +3,7 @@
 
 #show: clean-cnam-template.with(
   title: "ENPH 353 Final Report",
-  author: "Taichi Kamei, Bowen",
+  author: "Taichi Kamei, Bowen Yuan",
   class: "ENPH 353",
   subtitle: "2025 Clue Detective Competition",
   main-color: "#C4122E",
