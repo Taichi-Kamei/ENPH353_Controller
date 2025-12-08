@@ -11,7 +11,7 @@ from PyQt5.uic import loadUi
 import numpy as np
 import cv2
 
-from image_processor import ImageProcessor
+from controller.node.deprecated.image_processor import ImageProcessor
 from parameter_manager import ParameterManager
 
 class SignDebugGUI(QMainWindow):

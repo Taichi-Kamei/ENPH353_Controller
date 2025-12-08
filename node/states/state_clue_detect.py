@@ -3,7 +3,7 @@ import rospy
 
 from cv_bridge import CvBridge, CvBridgeError
 
-from clue_detector import ClueDetector
+from CNN.clue_detector import ClueDetector
 
 class Clue_DetectState:
 
