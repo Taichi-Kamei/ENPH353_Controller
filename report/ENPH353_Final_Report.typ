@@ -67,7 +67,7 @@ Finite State Machine (FSM) was implemented on our robot to manage driving in var
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
 \
-There are multiple state transition that uses clue board, and those are done by using the top word of the clue board which gets detected by our CNN model. In some cases, there are some chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions where it is possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be done either by detecting the clue board or by detecting the countour of the lake. This allowed 
+There are multiple state transition that uses clue board, and those are done by using the top word of the clue board which gets detected by our CNN model. In some states, there are chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be transitioned either by detecting the clue board or by detecting the countour of the lake. This allowed 
 
 == Controller GUI
 
