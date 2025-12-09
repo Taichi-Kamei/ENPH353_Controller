@@ -6,13 +6,21 @@
   author: "Taichi Kamei, Bowen Yuan",
   class: "ENPH 353",
   subtitle: "2025 Clue Detective Competition",
-  main-color: "#C4122E",
+  main-color: "#228B22",
+  code-font: "JetBrains Mono",
   default-font: "New Computer Modern",
-  outline-code: outline(
-    title: "Table of Contents",
-    depth: 2,
-    indent: auto,
+  outline-code: block(
+    inset: (left: 1.2cm, right: 1.2cm),
+    outline(
+      title: "Table of Contents",
+      depth: 3,
+      indent: auto,
+    )
   ),
+)
+
+#set page(
+  margin: 2.5cm
 )
 
 #set text(
@@ -25,10 +33,75 @@
 ): set figure.caption(position: bottom)
 
 
-= INTRODUCTION
+== Introduction
+
+=== Competition Requirements and Goals
+
+=== Contribution Split
+
+=== ROS Architecture
+Shown below is the structure of our ROS nodes and topics. The ROS nodes are in the black box, and the topics are highlighted in grey. Bold arrows indicate the ROS node interacations through topics, while dashed arrows represents local access relantionships.
+\
+#figure(
+  // The image function goes here (no '#' needed inside figure)
+  image("images/ROS.pdf", width: 110%),
+  // Add a caption using a content block ([...])
+  caption: [ROS Node and Topic Diagram],
+  // Add a label for referencing (use a name enclosed in angle brackets)
+)
+\
+Our robot has 3 main ROS nodes, the competition, state machine, and controller GUI nodes. Conneting those nodes are the topics, and we made 5 new topics for debugging purposes alongside the existing topics. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection.
+
+Our CNN is integrated in clue detect state instead of running indepently, so we can transition to clue detect state once the robot faces to the clue board. This allows robot to make predictable movement, avoiding unexpected PID control behavior from sudden clue detection.
 
 
+\
+=== Finite State Machine Architecture
+Finite State Machine (FSM) was implemented on our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
+\
+#figure(
+  // The image function goes here (no '#' needed inside figure)
+  image("images/FSM.pdf", width: 110%),
+  // Add a caption using a content block ([...])
+  caption: [Finite State Machine Diagram],
+  // Add a label for referencing (use a name enclosed in angle brackets)
+)
+\
+There are multiple state transition that uses clue board, and those are done by using the top word of the clue board which gets detected by our CNN model. In some cases, there are some chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions where it is possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be done either by detecting the clue board or by detecting the countour of the lake. This allowed 
 
+== Controller GUI
+
+
+== Clue Detection
+
+
+== Driving System
+
+=== General PID Algorithm
+
+=== Roundabout
+
+=== Off-Road Section
+
+=== Mountain
+
+
+== Obstacle Detection
+
+=== Pedestrian
+
+=== Truck
+
+=== Baby Yoda
+
+
+== Conclusion
+
+=== Competition Result
+
+=== Future Improvements
+
+== Appendix
 
 
 
