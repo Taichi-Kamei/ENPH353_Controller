@@ -16,7 +16,6 @@ class MountainState:
 
     def enter(self):
         rospy.loginfo("Entering Mountain state")
-        self.pub_time.publish("Team14,password,-1,END")
 
     def run(self):
 

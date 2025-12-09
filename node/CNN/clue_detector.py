@@ -3,10 +3,10 @@ import numpy as np
 
 from rapidfuzz import process, fuzz
 
-from ocr import OCR
+from CNN.ocr import OCR
 
 class ClueDetector:
-    def __init__(self, model_path='conv_model_0.99.tflite'):
+    def __init__(self, model_path='CNN/conv_model_0.99.tflite'):
         self.latest_board_mask = None
         self.latest_board = None
         self.latest_plate = None

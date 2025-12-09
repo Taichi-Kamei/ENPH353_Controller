@@ -74,7 +74,7 @@ class StateMachine:
         }
 
         
-        self.current_state = self.states["Paved_Road"]
+        self.current_state = self.states["Mountain"]
         self.current_state.enter()
 
 
