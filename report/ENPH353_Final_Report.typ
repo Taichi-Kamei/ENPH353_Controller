@@ -69,9 +69,51 @@ There are multiple state transition that uses clue board, and those are done by 
 
 == Controller GUI
 
+#grid(
+  columns: 2,
+  gutter: 0.5cm,
+  [  
+    Our controller GUI was used for monitoring different view types, controlling simulation environment, and launching scripts.\
+    \
+    The primary reason why we developed a controller GUI was to increase productivity by centralizing all control on one window instead of constantly launching different scripts in multiple terminal tabs and going on Gazebo to stop or reset robot.
+    This allowed us to easily modify values on VSCode and test its changes without getting frustrated by moving cursor all over the screen.\
+    \
+    GUI Functionalities:
+    - View different driving camera feeds (Raw, Countour, Tape)
+    - View different clue detection image processing stages\ (Board Mask, Flattened Plate, Letters)
+    - Pause/Resume Gazebo simulation
+    - Reset robot position in Gazebo
+    - Launch State Machine script
+    - Launch Score Tracker script
+    - Start and stop score tracker timer (Debugging purposes)
+  ],
+  figure(
+    // The image function goes here (no '#' needed inside figure)
+    image("images/Controller_GUI.png", width: 80%),
+    // Add a caption using a content block ([...])
+    caption: [Controller GUI],
+    // Add a label for referencing (use a name enclosed in angle brackets)
+  )
+)
+\
 == Driving System
 
 === General PID Algorithm
+
+
+#figure(
+
+  grid(
+  columns: 3,
+  gutter: 0.1cm,
+
+  image("images/dirt_road_contour.png", width: 70%),
+  image("images/narrow_road_drive.png", width: 70%),
+  image("images/dirt_road_steep.png", width: 70%)
+),
+  caption: [Driving on different terrains: (left) Dirt Road Contour Detection, (middle) Steep Hill Driving, (right) Narrow Road Driving],
+)
+
 
 === Intentional swerving
 
