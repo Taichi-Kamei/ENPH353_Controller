@@ -50,11 +50,9 @@ Shown below is the structure of our ROS nodes and topics. The ROS nodes are in t
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
 \
-Our robot has 3 main ROS nodes, the competition, state machine, and controller GUI nodes. Conneting those nodes are the topics, and we made 5 new topics for debugging purposes alongside the existing topics. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection.
-
+Our robot has 3 main ROS nodes, the competition, state machine, and controller GUI nodes. Conneting those nodes are the topics, and we made 5 new topics for debugging purposes alongside the existing topics. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection. All of these images processed inside each state scripts and are internally referenced to the main state_machine node, which then gets published as Image topics.
+\
 Our CNN is integrated in clue detect state instead of running indepently, so we can transition to clue detect state once the robot faces to the clue board. This allows robot to make predictable movement, avoiding unexpected PID control behavior from sudden clue detection.
-
-
 \
 === Finite State Machine Architecture
 Finite State Machine (FSM) was implemented on our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
@@ -67,13 +65,9 @@ Finite State Machine (FSM) was implemented on our robot to manage driving in var
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
 \
-There are multiple state transition that uses clue board, and those are done by using the top word of the clue board which gets detected by our CNN model. In some states, there are chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be transitioned either by detecting the clue board or by detecting the countour of the lake. This allowed 
+There are multiple state transition that uses clue board, and those are done by using the clue type on the board which gets detected by our CNN model. In some states, there are chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be transitioned either by detecting the clue board or by detecting the countour of the lake. This allowed 
 
 == Controller GUI
-
-
-== Clue Detection
-
 
 == Driving System
 
@@ -93,6 +87,10 @@ There are multiple state transition that uses clue board, and those are done by 
 === Truck
 
 === Baby Yoda
+
+=== Clue Detection Algorithm
+
+== Clue Detection
 
 
 == Conclusion
