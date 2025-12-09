@@ -73,6 +73,8 @@ There are multiple state transition that uses clue board, and those are done by 
 
 === General PID Algorithm
 
+=== Intentional swerving
+
 === Roundabout
 
 === Off-Road Section
