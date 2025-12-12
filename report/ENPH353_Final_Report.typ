@@ -18,7 +18,6 @@
   ),
 )
 
-
 #set page(
   margin: 2.5cm
 )
@@ -98,8 +97,16 @@ There are multiple state transition that uses clue board, and those are done by 
 \
 == Driving System
 
-=== General PID Algorithm
-
+=== Filtering valid contours
+For the PID driving, extracting the side lines and filtering out any other noises is crucial for a stable drive. 
+We realized that the ground to sky ratio in the frame was always constant on flat surface, so we first cropped the raw image and only kept the ground section. Then, we grayscale and binarize the image, and find the contour using _cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)_. \
+With high enough binarized threshold, we can filter out most of the small contour in dirt road section, but we could not remove all of them, so we tried filtering out by contour area. \
+#figure(
+  image("images/find_contour.png",width: 70%),
+  caption: [Contours in dirt road section after filtering by area]
+)
+\
+As it can be seen, unwanted contours still remained after the area filtering. Due to the nature of camera FOV, the contour area gets stretched at the bottom, so even if some contours were filtered out at first, it can suddenly pop up at the bottom of the frame. To combat this, we added another filtering layer using _cv2. boundingRect()_, and only keep the bounding rectangles that touches the side and is not at the middle bottom of the frame.
 
 #figure(
 
@@ -111,8 +118,14 @@ There are multiple state transition that uses clue board, and those are done by 
   image("images/narrow_road_drive.png", width: 70%),
   image("images/dirt_road_steep.png", width: 70%)
 ),
-  caption: [Driving on different terrains: (left) Dirt Road Contour Detection, (middle) Steep Hill Driving, (right) Narrow Road Driving],
+  caption: [Valid contours],
 )
+\
+Through multiple layers of filtering, we finally got valid contours like in the image above.
+\
+
+=== General PID Algorithm
+Unlike in the typical line-following, we drive in the middle of the two white lanes, so the proportional control require center adjustment algorithm for a smooth drive. 
 
 \
 === Intentional swerving
@@ -121,7 +134,7 @@ This swerving was implemented in a rather simple way by using a counter that sel
 
 #code(
   raw(block: true, lang: "python", 
-  "slope = 1.4\n
+  "  slope = 1.4\n
   if self.count <= 95 and self.count >= 85 and self.count % 2 == 0:
     slope = 3.7\n
   if cx <= frame_width * 0.5:
@@ -136,19 +149,72 @@ This swerving was implemented in a rather simple way by using a counter that sel
 This technique was used in "Post_Crosswalk", "Post_Roundabout", and "Dirt_Road" states.
 \
 === Roundabout
+#figure(
+    image("images/pre_truck_detection.png",width: 70%),
+    caption: [Pre-truck detection state]
+)
 
 === Off-Road Section
 
+#figure(
+    image("images/pre_off_road_edge.png",width: 70%),
+    caption: [Perpendicular to the tape]
+  )
+
+#figure(
+    image("images/home_pink.png",width: 70%),
+    caption: [Homing at the pink tape]
+)
+
+
+#figure(
+    image("images/2nd_pink_align.png",width: 70%),
+    caption: [Perpendicular to the tape]
+)
+
+#figure(
+    image("images/7th_clue_detect.png",width: 70%),
+    caption: [7th clue detection]
+)
+
+
+  
 === Mountain
+#grid(
+  columns: 2,
+
+  figure(
+    image("images/mountain_before.png",width: 70%),
+    caption: [Sky showing up as a huge contour]
+  ),
+
+  figure(
+    image("images/mountain_sky_black.png",width: 70%),
+    caption: [Sky masked out]
+  )
+)
+
+The problem with driving up the mountain was the sky showing up as a huge contour. Because it is always at side and will have big contour area, we can't filter it out using the same method as before. We masked out the pale blue sky by turning the raw image to HSV, create blue mask, and use _cv2.bitwise_not()_ to only remove the blue.\
 
 == Obstacle Detection
 
 === Pedestrian & Truck
+#figure(
+    image("images/pedestrian_detection.png",width: 70%),
+    caption: [Pedestrian detection]
+)
+
 
 === Baby Yoda
 The route we used for off-road driving does not interfere with the Baby Yoda's path. Therefore, we did not have to implement any detection and avoidance 
 
 === Clue Detection transition Algorithm
+#figure(
+    image("images/homing_board.png",width: 50%),
+    caption: [Homing at the board]
+)
+Our clue detection CNN runs inside the "Clue_Detect" state only when the robot is facing the board and is close enough. By doing so, we can avoid unexpected behavior, and maximize the chance of predicting right clue.
+In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and the robot moves closer to the board until the CNN function returns a string. Once the letters are detected, the robot sends it to the score tracker, face away from the clue baord, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes caught the board again and got stuck in "Clue Detect" state.
 
 == Clue Detection
 
