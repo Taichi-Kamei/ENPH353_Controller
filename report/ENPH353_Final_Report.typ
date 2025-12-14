@@ -278,5 +278,5 @@ We were the only team with traditional PID control that has reached to the tunne
 As a team who did the PID control with the original robot, we think it is very hard to implement PID control robot to finish the course under tight time. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alignment. All the teams that went beyond the tunnel were either using imitation learning or drone PID. 
 \
 === Future Improvements
-
+Use imitation learning
 == Appendix
