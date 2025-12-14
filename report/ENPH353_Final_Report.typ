@@ -192,40 +192,43 @@ self.state_machine.move.angular.z = self.kp * error")
 This technique was used in "Post_Crosswalk" and "Post_Roundabout" states.
 \
 === Roundabout
+Difficulties we encountered other than the truck detection were to make the robot turn left at the entrance and at the exit\
+
+To make the robot turn left at the entrance of the roundabout, we made the robot turn left at the exit of "Truck" state before entering the "Roundabout" state. \
+\
 #figure(
-    image("images/pre_truck_detection.png",width: 70%),
-    caption: [Pre-truck detection state]
+    image("images/roundabout_4thclue.png",width: 40%),
+    caption: [Using 4th clue board contour area as transition condition]
 )
-
-Difficulties we encountered other than the truck detection were to make the robot turn left at the entrance, and to make the robot swerve at the exit of the roundabout for 4th clue detection.\
-
-To make the robot turn left at the entrance of the roundabout, we made a "Pre_Truck" state which will transition to the truck state when there is a wide and flat bounding rectangle at the top 
-
+At the exit of the roundabout, the robot could turn left most of the time because we made the P-control favor left turning with center-lane shift. However, there was a decent chance of failing the turn, so we created a "Post_Roundabout" state which turns left for a short time after entering this state. The transition condition from "Roundabout" state to this state is the contour area of the 4th clue board exceeding threshold area.
 
 === Off-Road Section
-
+The strategy for this section was:\
+\
+1. Position the robot perpendicular to the pink tape using edge
 #figure(
   grid(columns:2,
 
   image("images/tape_pink_raw.png", width: 100%, height: 4cm, fit: "contain"),
   image("images/tape_edge.png", width: 100%, height: 4cm, fit: "contain"),
   ),
-  caption: [Perpendicular to the tape]
+  caption: [Positioning robot perpendicular to the pink tape]
   )
-
-wawawa
-
+2. Move straight for some period
+3. Turn 90 degrees left
+4. Move straight and go over the hill
+5. Home at the pink tape next to the tunnel with PID
 #figure(
-    image("images/tape_home_better.png",width: 40%),
+    image("images/tape_home_better.png",width: 30%),
     caption: [Homing at the pink tape]
 )
-
-
+6. Move straight until pink contour area is above threshold
+7. Position the robot perpendicular to the tape.
 #figure(
-    image("images/2nd_pink_align.png",width: 70%),
-    caption: [Perpendicular to the tape]
+    image("images/2nd_pink_align.png",width: 50%),
+    caption: [Positioning perpendicular to the pink tape]
 )
-
+\
 
   
 === Mountain
@@ -273,7 +276,7 @@ The route we used for off-road driving does not interfere with the Baby Yoda's p
     caption: [Homing at the board]
 )
 Our clue detection CNN runs inside the "Clue_Detect" state only when the robot is facing the board and is close enough. By doing so, we can avoid unexpected behavior, and maximize the chance of predicting right clue.
-In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and the robot moves closer to the board until the CNN function returns a string. Once the letters are detected, the robot sends it to the score tracker, face away from the clue board, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes caught the board again and got stuck in "Clue Detect" state.\
+In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and move the robot closer to the board until the CNN function returns a valid letters. Once the letters are detected, the robot sends it to the score tracker, face away from the clue board, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes catch the board again and gets stuck in "Clue Detect" state.\
 
 == Clue Detection
 
