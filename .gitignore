@@ -8,3 +8,5 @@ node/__pycache__
 node/__pycache__/
 
 report/*.pdf
+
+.DS_Store
