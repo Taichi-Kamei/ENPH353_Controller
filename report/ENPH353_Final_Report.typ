@@ -49,9 +49,9 @@ Shown below is the structure of our ROS nodes and topics. The ROS nodes are in t
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
 \
-Our robot has 3 main ROS nodes, the competition, state machine, and controller GUI nodes. Conneting those nodes are the topics, and we made 5 new topics for debugging purposes alongside the existing topics. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection. All of these images processed inside each state scripts and are internally referenced to the main state_machine node, which then gets published as Image topics.
+Our robot has 3 main ROS nodes, the competition, state machine, and controller GUI nodes. Connecting those nodes are the topics, and we made 5 new topics for debugging purposes alongside the existing topics. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection. All of these images processed inside each state scripts and are internally referenced to the main state_machine node, which then gets published as Image topics.
 \
-Our CNN is integrated in clue detect state instead of running indepently, so we can transition to clue detect state once the robot faces to the clue board. This allows robot to make predictable movement, avoiding unexpected PID control behavior from sudden clue detection.
+Our CNN is integrated in clue detect state instead of running independently, so we can transition to clue detect state once the robot faces to the clue board. This allows robot to make predictable movement, avoiding unexpected PID control behavior from sudden clue detection.
 \
 === Finite State Machine Architecture
 Finite State Machine (FSM) was implemented on our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
@@ -64,7 +64,7 @@ Finite State Machine (FSM) was implemented on our robot to manage driving in var
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
 \
-There are multiple state transition that uses clue board, and those are done by using the clue type on the board which gets detected by our CNN model. In some states, there are chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be transitioned either by detecting the clue board or by detecting the countour of the lake. This allowed 
+There are multiple state transition that uses clue board, and those are done by using the clue type on the board which gets detected by our CNN model. In some states, there are chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be transitioned either by detecting the clue board or by detecting the contour of the lake. This allowed 
 
 == Controller GUI
 
@@ -165,13 +165,15 @@ error = center_shift + (frame_width / 2.0) - cx"
 )
 
 The slope value was adjusted in each state through trial and error and it ranged from 2 to 4.
-
+\
+\
+It turned out that a single line driving is far more stable than dual-line driving, so we ended up using single line P-control for most of the time, and made the robot move straight while two lines were detected and the error was within certain range.
 
 
 \
 === Intentional swerving
 Our PID algorithm worked too well following the road, and it couldn't catch clue boards right after the steep curve because it was out of frame. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically for a given period. This allowed the robot to cover a wider area in front of it and increased the chances of detecting clue boards.
-This swerving was implemented in a rather simple way by using a counter that gets incremented every time the state's run function gets called, and changing the "slope" every $"mod"2 = 0$.
+This swerving was implemented in a rather simple way by using a counter that gets incremented every time the state's run function gets called, and changing the "slope" for $"mod"2 = 0$.
 
 #code(
   raw(block: true, lang: "python", 
@@ -195,11 +197,16 @@ This technique was used in "Post_Crosswalk" and "Post_Roundabout" states.
     caption: [Pre-truck detection state]
 )
 
+Difficulties we encountered other than the truck detection were to make the robot turn left at the entrance, and to make the robot swerve at the exit of the roundabout for 4th clue detection.\
+
+To make the robot turn left at the entrance of the roundabout, we made a "Pre_Truck" state which will transition to the truck state when there is a wide and flat bounding rectangle at the top 
+
+
 === Off-Road Section
 
 #figure(
   grid(columns:2,
-  align: center,
+
   image("images/tape_pink_raw.png", width: 100%, height: 4cm, fit: "contain"),
   image("images/tape_edge.png", width: 100%, height: 4cm, fit: "contain"),
   ),
@@ -243,8 +250,18 @@ The problem with driving up the mountain was the sky showing up as a huge contou
 === Pedestrian & Truck
 #figure(
     image("images/pedestrian_detection.png",width: 70%),
-    caption: [Pedestrian detection]
+    caption: [Pedestrian detection using cv2.absdiff()]
 )
+Our strategy for pedestrian and truck detection was to stop the robot when entering the state, use _cv2.absdiff()_ to find the difference in two consecutive frames, and start driving if there were no difference for 2 consecutive times. \
+
+The detection method is the same for both states, but transition to each detecting state is different. \
+For the pedestrian detection, we detect the red tape using a red mask, enter "Pedestrian" state, stop the robot, and detect for moving object. We cropped the top part of the frame so that the truck at the back wouldn't be considered as a moving pedestrian.\
+\
+#figure(
+    image("images/pre_truck_detection.png",width: 70%),
+    caption: [Flat and wide bounding rectangle at the top of the frame]
+)
+For the truck state, we made a "Pre_Truck" state which transitions to the "Truck" state when there is a wide and flat bounding rectangle at the top as it is shown in the top right side of the image. At the exit of this state, the robot will turn slightly to the right so the camera can capture the truck better.
 
 
 === Baby Yoda
@@ -256,7 +273,7 @@ The route we used for off-road driving does not interfere with the Baby Yoda's p
     caption: [Homing at the board]
 )
 Our clue detection CNN runs inside the "Clue_Detect" state only when the robot is facing the board and is close enough. By doing so, we can avoid unexpected behavior, and maximize the chance of predicting right clue.
-In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and the robot moves closer to the board until the CNN function returns a string. Once the letters are detected, the robot sends it to the score tracker, face away from the clue baord, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes caught the board again and got stuck in "Clue Detect" state.\
+In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and the robot moves closer to the board until the CNN function returns a string. Once the letters are detected, the robot sends it to the score tracker, face away from the clue board, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes caught the board again and got stuck in "Clue Detect" state.\
 
 == Clue Detection
 
