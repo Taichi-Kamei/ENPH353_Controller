@@ -100,13 +100,14 @@ There are multiple state transition using clue board, and those are done by usin
 === Filtering valid contours
 For the PID driving, extracting the side lines and filtering out any other noises are crucial. 
 We realized that the ground to sky ratio in the frame was always constant on a flat surface, so we first crop the raw image and only keep the ground portion. Then, we gray-scale and binarize the cropped image, and find the contour using _cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)_. \
-With high enough binarized threshold, we can filter out most of the small contour in dirt road section and other similar surface condition, but we could not remove all of them, so we tried filtering out by contour area. \
+With high enough binarized threshold, we can filter out most of the small contour in dirt road section and other similar surface condition, but we could not eliminate all of them, so we tried filtering out by contour area. \
+\
 #figure(
   image("images/find_contour.png",width: 70%),
   caption: [Contours in dirt road section after filtering by area]
 )
 \
-As it can be seen, unwanted contours still remained after the area filtering. Due to the nature of camera FOV, the contour area gets stretched at the bottom, so even if some contours were filtered out at first, it can suddenly pop up at the bottom of the frame. To combat this, we added another filtering layer using _cv2. boundingRect()_, and only keep the bounding rectangles that touches the side and is not at the middle bottom of the frame.
+As it can be seen, undesired contours still remained after the area filtering. Due to the nature of camera FOV, the contour area gets stretched at the bottom. Therefore, some noises can suddenly pop up at the bottom of the frame even if those were initially filtered out. To resolve this issue, we added another filtering layer using _cv2. boundingRect()_, and only keep the bounding rectangles which touch the sides and is not at the middle bottom of the frame.
 
 #figure(
 
@@ -125,14 +126,14 @@ Through multiple layers of filtering, we finally got valid contours like in the 
 \
 
 === General PID Algorithm
-We generally use the contour's area moment and calculate lane center coordinate and find the error from the center of the frame. However, unlike in the typical line-following, we drive in the middle of the two white lanes, so the proportional control require center adjustment algorithm for a smooth drive. 
+We generally use contour's area moment, calculate lane center coordinate, and find the error between center coordinate and the center of the frame. However, unlike in the typical line-following, we drive in the middle of the two white lines, so the proportional control require center lane adjustment algorithm for a smooth drive. 
 
 \
 #figure(
   image("images/drive_2lane.jpg", width: 70%),
   caption: [2 lanes drive with traditional P-control]
 )
-In this case, we find the area moment of two lines and average the Cx value to get the lane center which is shown as light blue point. We calculate the error from the frame center which is shown as red line, and control the yaw. This works for straight roads with two lines, but fails at a steep curve with only one line.
+In this case, we find the area moment of two lines and average the Cx value to get the lane center which is shown as light blue point. We calculate the error from the frame center which is shown as red line, and control the yaw. This works for straight roads with two lines, but fails at a steep curve where there is only one line.
 #code(
   raw(block:true, lang:"Python",
     "error = (frame_width / 2.0) - cx
@@ -151,7 +152,7 @@ self.state_machine.move.angular.z = self.kp * error"
   ),
   caption: [Steep curve with single line]
 )
-The light blue dot is the estimated Cx, and it is very close to the frame center (light red line). With the same error calculation as above, the error would be way smaller than the required error to fully turn. This is due to the frame center significantly off from the lane center. To solve this issue, we thought of shifting the frame center more to the side like shown the dark red line on the images. The closer the contour is to the bottom of the frame, the more shift required, so we used the Cy value of the area moment, and tested a proportional relationship between Cy and the magnitude of the shift. The following is the adjusted error calculation code:\
+The light blue dot is the estimated Cx, and it is very close to the frame center (light red). With the same error calculation as above, the error would be way smaller than the required error to fully turn. This is due to the frame center significantly off from the lane center. To solve this issue, we thought of shifting the frame center more to the side like shown the dark red line on the images. The closer the contour is to the bottom of the frame, the more shift required, so we used the Cy value of the area moment, and tested a proportional relationship between Cy and the magnitude of the shift. The following is the adjusted error calculation code:\
 
 #code(
   raw(block:true, lang:"Python",
@@ -164,7 +165,7 @@ error = center_shift + (frame_width / 2.0) - cx"
   )
 )
 
-The slope value was adjusted in each state through trial and error and it ranged from 2 to 4.
+The slope value was adjusted in each state through trial and error, which ranged from 2 to 4.
 \
 \
 It turned out that a single line driving is far more stable than dual-line driving, so we ended up using single line P-control for most of the time, and made the robot move straight while two lines were detected and the error was within certain range.
@@ -172,8 +173,8 @@ It turned out that a single line driving is far more stable than dual-line drivi
 
 \
 === Intentional swerving
-Our PID algorithm worked too well following the road, and it couldn't catch clue boards right after the steep curve because it was out of frame. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically for a given period. This allowed the robot to cover a wider area in front of it and increased the chances of detecting clue boards.
-This swerving was implemented in a rather simple way by using a counter that gets incremented every time the state's run function gets called, and changing the "slope" for $"mod"2 = 0$.
+Our PID algorithm worked too well, and missed clue boards right after the steep curve because the board was never in the camera frame. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically for a specified period. This allowed the robot to cover a wider area and increased the chances of detecting clue boards.
+This swerving was implemented in a rather simple way by using a counter that gets incremented every time the state's run function gets called, and changing the "slope" value periodically for $"mod"2 = 0$.
 
 #code(
   raw(block: true, lang: "python", 
@@ -192,15 +193,15 @@ self.state_machine.move.angular.z = self.kp * error")
 This technique was used in "Post_Crosswalk" and "Post_Roundabout" states.
 \
 === Roundabout
-Difficulties we encountered other than the truck detection were to make the robot turn left at the entrance and at the exit\
+Difficulties we encountered other than the truck detection was the let turn at the entrance and at the exit of the roundabout.\
 
-To make the robot turn left at the entrance of the roundabout, we made the robot turn left at the exit of "Truck" state before entering the "Roundabout" state. \
+For the entrance, we made the robot turn left while exiting the "Truck" state so the robot can start drive clock-wise when it enters the "Roundabout" state. \
 \
 #figure(
     image("images/roundabout_4thclue.png",width: 40%),
     caption: [Using 4th clue board contour area as transition condition]
 )
-At the exit of the roundabout, the robot could turn left most of the time because we made the P-control favor left turning with center-lane shift. However, there was a decent chance of failing the turn, so we created a "Post_Roundabout" state which turns left for a short time after entering this state. The transition condition from "Roundabout" state to this state is the contour area of the 4th clue board exceeding threshold area.
+for exiting roundabout, the robot could turn left for most of the time because we made the P-control favor left turning with center-lane shift algorithm in "Roundabout" state. However, there was a decent chance of robot failing to do so, so we created a "Post_Roundabout" state which rotates left for a short time after entering this state. The transition condition from "Roundabout" state to this state is the contour area of the 4th clue board exceeding threshold area.
 
 === Off-Road
 The strategy for this section was:\
