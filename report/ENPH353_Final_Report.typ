@@ -164,14 +164,14 @@ error = center_shift + (frame_width / 2.0) - cx"
   )
 )
 
-The slope value was adjusted in each state through trial and error ranging $2 < "slope" < 4$.
+The slope value was adjusted in each state through trial and error and it ranged from 2 to 4.
 
 
 
 \
 === Intentional swerving
-Our PID algorithm worked too well following the road that clue boards right after the steep curve were not in the camera view. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically while driving straight. This allowed the robot to cover a wider area in front of it and increased the chances of detecting clue boards.
-This swerving was implemented in a rather simple way by using a counter that self increments itself for each run(), and changing the "Shift" periodically.
+Our PID algorithm worked too well following the road, and it couldn't catch clue boards right after the steep curve because it was out of frame. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically for a given period. This allowed the robot to cover a wider area in front of it and increased the chances of detecting clue boards.
+This swerving was implemented in a rather simple way by using a counter that gets incremented every time the state's run function gets called, and changing the "slope" every $"mod"2 = 0$.
 
 #code(
   raw(block: true, lang: "python", 
@@ -187,7 +187,7 @@ self.state_machine.move.linear.x  = self.linear_speed
 self.state_machine.move.angular.z = self.kp * error")
 )
 
-This technique was used in "Post_Crosswalk", "Post_Roundabout", and "Dirt_Road" states.
+This technique was used in "Post_Crosswalk" and "Post_Roundabout" states.
 \
 === Roundabout
 #figure(
@@ -217,11 +217,6 @@ wawawa
 #figure(
     image("images/2nd_pink_align.png",width: 70%),
     caption: [Perpendicular to the tape]
-)
-
-#figure(
-    image("images/7th_clue_detect.png",width: 70%),
-    caption: [7th clue detection]
 )
 
 
@@ -269,9 +264,17 @@ In each driving state, we have a blue board contour detection function which ret
 
 
 === Competition Result
+#figure(
+  image("images/7th_clue_detect.png", width: 80%),
+  caption: [7th Clue Detected]
+)
+#figure(
+  image("images/comp_result.png", width: 80%),
+  caption: [Unofficial but during competition result]
+)
 
-Scored 38 points though unrecorded
-We are the only team with traditional PID control that has reached to the tunnel section and captured the 7th clue board.  
+Scored 38 points though unrecorded.
+We were the only team with traditional PID control that has reached to the tunnel section and captured the 7th clue board.  
 As a team who did the PID control with the original robot, we think it is very hard to implement PID control robot to finish the course under tight time. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alignment. All the teams that went beyond the tunnel were either using imitation learning or drone PID. 
 \
 === Future Improvements
