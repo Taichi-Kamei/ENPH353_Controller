@@ -1,6 +1,5 @@
 #import "@preview/clean-cnam-template:1.3.0": *
 
-
 #show: clean-cnam-template.with(
   title: "ENPH 353 Final Report",
   author: "Taichi Kamei, Bowen Yuan",
@@ -69,297 +68,165 @@ There are multiple state transition that uses clue board, and those are done by 
 
 == Controller GUI
 
+#grid(
+  columns: 2,
+  gutter: 0.5cm,
+  [  
+    Our controller GUI was used for monitoring different view types, controlling simulation environment, and launching scripts.\
+    \
+    The primary reason why we developed a controller GUI was to increase productivity by centralizing all control on one window instead of constantly launching different scripts in multiple terminal tabs and going on Gazebo to stop or reset robot.
+    This allowed us to easily modify values on VSCode and test its changes without getting frustrated by moving cursor all over the screen.\
+    \
+    GUI Functionalities:
+    - View different driving camera feeds (Raw, Countour, Tape)
+    - View different clue detection image processing stages\ (Board Mask, Flattened Plate, Letters)
+    - Pause/Resume Gazebo simulation
+    - Reset robot position in Gazebo
+    - Launch State Machine script
+    - Launch Score Tracker script
+    - Start and stop score tracker timer (Debugging purposes)
+  ],
+  figure(
+    // The image function goes here (no '#' needed inside figure)
+    image("images/Controller_GUI.png", width: 80%),
+    // Add a caption using a content block ([...])
+    caption: [Controller GUI],
+    // Add a label for referencing (use a name enclosed in angle brackets)
+  )
+)
+\
 == Driving System
 
+=== Filtering valid contours
+For the PID driving, extracting the side lines and filtering out any other noises is crucial for a stable drive. 
+We realized that the ground to sky ratio in the frame was always constant on flat surface, so we first cropped the raw image and only kept the ground section. Then, we grayscale and binarize the image, and find the contour using _cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)_. \
+With high enough binarized threshold, we can filter out most of the small contour in dirt road section, but we could not remove all of them, so we tried filtering out by contour area. \
+#figure(
+  image("images/find_contour.png",width: 70%),
+  caption: [Contours in dirt road section after filtering by area]
+)
+\
+As it can be seen, unwanted contours still remained after the area filtering. Due to the nature of camera FOV, the contour area gets stretched at the bottom, so even if some contours were filtered out at first, it can suddenly pop up at the bottom of the frame. To combat this, we added another filtering layer using _cv2. boundingRect()_, and only keep the bounding rectangles that touches the side and is not at the middle bottom of the frame.
+
+#figure(
+
+  grid(
+  columns: 3,
+  gutter: 0.1cm,
+
+  image("images/dirt_road_contour.png", width: 70%),
+  image("images/narrow_road_drive.png", width: 70%),
+  image("images/dirt_road_steep.png", width: 70%)
+),
+  caption: [Valid contours],
+)
+\
+Through multiple layers of filtering, we finally got valid contours like in the image above.
+\
+
 === General PID Algorithm
+Unlike in the typical line-following, we drive in the middle of the two white lanes, so the proportional control require center adjustment algorithm for a smooth drive. 
 
+\
 === Intentional swerving
+Our PID algorithm worked too well following the road that clue boards right after the steep curve were not in the camera view. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically while driving straight. This allowed the robot to cover a wider area in front of it and increased the chances of detecting clue boards.
+This swerving was implemented in a rather simple way by using a counter that self increments itself for each run(), and changing the "Shift" mentioned ealier periodically.
 
+#code(
+  raw(block: true, lang: "python", 
+  "  slope = 1.4\n
+  if self.count <= 95 and self.count >= 85 and self.count % 2 == 0:
+    slope = 3.7\n
+  if cx <= frame_width * 0.5:
+    slope = -1 * slope\n
+  center_shift = slope * cy
+  error = center_shift + (frame_width / 2.0) - cx
+
+  self.state_machine.move.linear.x  = self.linear_speed
+  self.state_machine.move.angular.z = self.kp * error")
+)
+
+This technique was used in "Post_Crosswalk", "Post_Roundabout", and "Dirt_Road" states.
+\
 === Roundabout
+#figure(
+    image("images/pre_truck_detection.png",width: 70%),
+    caption: [Pre-truck detection state]
+)
 
 === Off-Road Section
 
-=== Mountain
+#figure(
+    image("images/pre_off_road_edge.png",width: 70%),
+    caption: [Perpendicular to the tape]
+  )
 
+#figure(
+    image("images/home_pink.png",width: 70%),
+    caption: [Homing at the pink tape]
+)
+
+
+#figure(
+    image("images/2nd_pink_align.png",width: 70%),
+    caption: [Perpendicular to the tape]
+)
+
+#figure(
+    image("images/7th_clue_detect.png",width: 70%),
+    caption: [7th clue detection]
+)
+
+
+  
+=== Mountain
+#grid(
+  columns: 2,
+
+  figure(
+    image("images/mountain_before.png",width: 70%),
+    caption: [Sky showing up as a huge contour]
+  ),
+
+  figure(
+    image("images/mountain_sky_black.png",width: 70%),
+    caption: [Sky masked out]
+  )
+)
+
+The problem with driving up the mountain was the sky showing up as a huge contour. Because it is always at side and will have big contour area, we can't filter it out using the same method as before. We masked out the pale blue sky by turning the raw image to HSV, create blue mask, and use _cv2.bitwise_not()_ to only remove the blue.\
 
 == Obstacle Detection
 
-=== Pedestrian
+=== Pedestrian & Truck
+#figure(
+    image("images/pedestrian_detection.png",width: 70%),
+    caption: [Pedestrian detection]
+)
 
-=== Truck
 
 === Baby Yoda
+The route we used for off-road driving does not interfere with the Baby Yoda's path. Therefore, we did not have to implement any detection and avoidance 
 
-=== Clue Detection Algorithm
+=== Clue Detection transition Algorithm
+#figure(
+    image("images/homing_board.png",width: 50%),
+    caption: [Homing at the board]
+)
+Our clue detection CNN runs inside the "Clue_Detect" state only when the robot is facing the board and is close enough. By doing so, we can avoid unexpected behavior, and maximize the chance of predicting right clue.
+In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and the robot moves closer to the board until the CNN function returns a string. Once the letters are detected, the robot sends it to the score tracker, face away from the clue baord, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes caught the board again and got stuck in "Clue Detect" state.
 
 == Clue Detection
 
-
 == Conclusion
+
 
 === Competition Result
 
+Scored 38 points though unrecorded
+We are the only team with traditional PID control that has reached to the tunnel section and captured the 7th clue board.  
+As a team who did the PID control with the original robot, we think it is very hard to implement PID control robot to finish the course under tight time. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alginement. All the teams that went beyond the tunnel were either using imitation learning or drone PID. 
+\
 === Future Improvements
 
 == Appendix
-
-
-
-
-= Example code
-== Shaft 2 Calculations
-
-Net driving force on the timing belt pulley is given by:
-$
-  F_N = T_C / (D_C / 2) = 0.521 "lbf"
-$
-Bending force on C is given by:
-$
-  F_C = 1.5 F_N = 0.866 "lbf"
-$
-Since z components of timing belt cancles out, we only consider x component of $F_C$.
-
-$
-F_(C x) = F_C cos(phi) = 0.819 "lbf"
-$
-Where $phi$ is the angle between the belt and horizontal plane, calculated in above section.\
-\
-#figure(
-  // The image function goes here (no '#' needed inside figure)
-  image("images/2nd_shaft_FBD.jpeg", width: 70%),
-  // Add a caption using a content block ([...])
-  caption: [FBD of shaft 2],
-  // Add a label for referencing (use a name enclosed in angle brackets)
-)
-\
-Point A and D are the bushings, B is the worm gear, and C is the pulley for the timing belt.\
-\
-Known forces from above calculations are:
-#align(center,
-  grid(
-    columns: 2,
-    gutter: 1cm,
-
-    $F_(B x) = 3.28 "lbf" \
-    F_(B y) = 2.67 "lbf" \
-    F_(B z) = 12.5 "lbf" \ $,
-
-    $F_(C x) = 0.819 "lbf"
-    $
-  )
-)
-\
-Forces on A and D are calcualated as follows:
-\
-#align(left,
-$Sigma F_x = 0 :$
-) $
-  -F_(A x) + F_(B x) - F_(C x) - F_(D x) &= 0 \
-  F_(A x) + F_(D x) &= F_(B x) - F_(C x) \
-  F_(A x) &= F_(B x) - F_(C x) - F_(D x) \
-  $
-
-#align(left,
-$Sigma F_y = 0 :$
-)
-  $
-  F_(A y) - F_(B y) &= 0 \
-  F_(A y) &= F_(B y)
-  \
-  $
-
-#align(left,
-$Sigma F_z = 0 :$
-)
-  $
-  F_(A z) - F_(B z) + F_(D z) &= 0 \
-  F_(A z) + F_(D z) &= F_(B z) \
-  F_(A z) &= F_(B z) - F_(D z)
-  $
-
-#align(left,
-$Sigma M_(A x) = 0 :$
-)
-  $
-  -L_(A B)F_(B z) + L_(A D)F_(D z) &= 0 \
-  F_(D z) &= L_(A B)/L_(A D)F_(B z) \ 
-  $
-
-#align(left,
-$Sigma M_(A z) = 0 :$
-)
-  $
-  -L_(A B)F_(B x) + L_(A C)F_(C x) +  L_(A D)F_(D x) &= 0 \
-  F_(D x) &= (L_(A B)F_(B x) - L_(A C)F_(C x))/L_(A D) \ 
-  $
-\
-Using the known forces, we get following forces on A and D:
-
-#align(center,
-  grid(
-    columns: 2,
-    gutter: 1cm,  
-    $F_(A x) = 3.01 "lbf" \
-    F_(A y) = 2.67 "lbf" \
-    F_(A z) = 11.7 "lbf" \
-    $,
-    $F_(D x) = -0.553 "lbf" \
-    F_(D y) =  0.00 "lbf" \
-    F_(D z) = 0.812 "lbf" \
-    $
-  )
-)
-\
-
-#align(center,
-  grid(
-    columns: 2,
-    gutter: 1cm,
-
-    figure(
-      table(
-        columns: 3,
-        stroke: 1pt + black,
-        inset: 4pt,
-          [],[$"V"_("horizontal") "(lbf)"$],  [$"V"_("vertical") "(lbf)"$],
-          [A],[-3.01],  [11.7],
-          [B],[0.267],  [-0.812],
-          [C],[-0.553], [-0.812],
-          [D],[0.00],   [0.00]
-      ),
-      caption: [Shear Forces],
-    ),
-
-    figure(
-      table(
-        columns: 4,
-        stroke: 1pt + black,
-        inset: 4pt,
-          [], [$"M"_("horizontal") "(lbf·in)"$], [$"M"_("vertical") "(lbf·in)"$], [$"M"_("total") "(lbf·in)"$],
-          [A],[0.00],[0.00],[0.00],
-          [B],[-3.01],[11.7],[12.1],
-          [C],[-1.23],[0.406],[1.30],
-          [D],[0.00],[0.00],[0.00]
-      ),
-      caption: [Bending Moments],
-    )
-  )
-)
-
-#figure(
-  // The image function goes here (no '#' needed inside figure)
-  image("images/2nd_shaft_shear_moment.jpeg", width: 70%),
-  // Add a caption using a content block ([...])
-  caption: [Shear and bending moment diagram],
-  // Add a label for referencing (use a name enclosed in angle brackets)
-) <fig:2nd_shaft_shear_moment>
-\
-#align(center,
-  block(width: auto,
-    grid(
-      columns: 2,
-      gutter: 1cm,
-
-      figure(
-        table(
-          columns: 2,
-          stroke: 1pt + black,
-          inset: 4pt,
-            [], [$"T (lbf·in)"$],
-            [A], [0.00],
-            [B], [0.521],
-            [C], [-0.521],
-            [D], [0.00]
-        ),
-        caption: [Torque],
-      ),
-
-      figure(
-        image("images/2nd_shaft_torque.jpeg", width: 70%),
-        caption: [Torque diagram of 2nd shaft],
-      ),
-    )
-  )
-)
-
-\
-#figure(
-table(
-  columns: 3,
-  stroke: 1pt + black,
-  inset: 4pt,
-    [], [$"M"_("total") "(lbf·in)"$], [$"T (lbf·in)"$],
-    [A], [0.00],  [0.00],
-    [B], [12.1],  [0.521],
-    [C], [1.30],  [-0.521],
-    [D], [0.00],  [0.00]
-),
-caption: [Summary of Moments and Torques],
-)
-
-The constraint we have is the diameter sizes for the worm gear and the pulley. The mateiral is suitable for the shaft if the minimum diameter calculation at each location is below the allowable diameter determined by those components' bore diameter.
-
-From Mott eqn 12-24,
-
-$
-D_min = [
-  (32N) / pi sqrt((k_t M / S_n')^2 + (3/4) (T / S_y)^2)
-]^(1/3)
-$
-\
-For the material choice, we want to use an affordable, and easy to machine. Therefore, we will use Aluminum for the shaft material. \
-From Appendix B II, we choose Aluminum 2014 O for its high ductility, decent strength, and cheap cost of about \$1 per inch.
-\
-#align(center,
-  figure(
-    table(
-      columns: 2,
-      stroke: 1pt + black,
-      inset: 4pt,
-        [$S_u$], [27 ksi],
-        [$S_y$], [14 ksi],
-        [$S_(n)$], [13 ksi],
-    ),
-    caption: [Material Properties of Aluminum 2014 O],
-  )
-)
-\
-
-$S_n' = 10.608 "ksi"$
-The modified endurance strength is same as Shaft 1 calculations. \
-$K_t = 2.5$ as sharp fillet is used for the shaft shoulders.\
-$N = 2.0$ is chosen for our design factor since aluminum is a ductile material and the design factor is in the range of $1.5 < N < 2.5$. 
-\
-
-Substituting the values into the minimum diameter based on moment and torque, we get:
-$
-D_(min, i) = [
-  (64) / pi sqrt((2.5 M_("total", i) / 10608)^2 + (3/4) (T_i / 14000)^2)
-]^(1/3) "for" i = A, B, C, D
-$
-
-Minimum diameter based on shear:
-$ D_(min "shear") = sqrt((2.95 K_t V_i N)/(s'_n)) "for" i = A, B, C, D $
-\
-Using eqn (6.4.25), (6.4.26) and table 2,3, we calculate the minimum shaft diameter at each location: \
-\
-#align(center,
-  figure(
-    table(
-      columns: 4,
-      stroke: 1pt + black,
-      inset: 4pt,
-        [], [$D_min "(in)"$],[$D_(min "shear") "(in)"$],[$D_"Allowable" "(in)"$],
-        [$D_A$], [0.00],[0.130],[0.186],
-        [$D_B$], [0.362],[0.0345],[0.75],
-        [$D_C$], [0.172],[0.0370],[0.25],
-        [$D_D$], [0.00],[0.00], [0.186]
-    ),
-    caption: [Minimum and Allowable Shaft Diameters],
-  )
-)
-
-\
-The minimum shaft diameter at each location is well below the allowable shaft diameter determined by the components. 
-Thus, Aluminum 2014 O is a suitable material for the 2nd shaft.
-\
