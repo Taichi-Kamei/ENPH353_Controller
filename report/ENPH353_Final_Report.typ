@@ -39,7 +39,7 @@
 === Contribution Split
 
 === ROS Architecture
-Shown below is the structure of our ROS nodes and topics. The ROS nodes are in the black box, and the topics are highlighted in grey. Bold arrows indicate the ROS node interacations through topics, while dashed arrows represents local access relantionships.
+Shown below is the structure of our ROS nodes and topics. The ROS nodes are in the black box, and the topics are highlighted in grey. Bold arrows indicate the ROS node interactions through topics, while dashed arrows represents local access relationships.
 \
 #figure(
   // The image function goes here (no '#' needed inside figure)
@@ -78,7 +78,7 @@ There are multiple state transition that uses clue board, and those are done by 
     This allowed us to easily modify values on VSCode and test its changes without getting frustrated by moving cursor all over the screen.\
     \
     GUI Functionalities:
-    - View different driving camera feeds (Raw, Countour, Tape)
+    - View different driving camera feeds (Raw, Contour, Tape)
     - View different clue detection image processing stages\ (Board Mask, Flattened Plate, Letters)
     - Pause/Resume Gazebo simulation
     - Reset robot position in Gazebo
@@ -98,7 +98,7 @@ There are multiple state transition that uses clue board, and those are done by 
 == Driving System
 
 === Filtering valid contours
-For the PID driving, extracting the side lines and filtering out any other noises is crucial for a stable drive. 
+For the PID driving, extracting the side lines and filtering out any other noises is crucial. 
 We realized that the ground to sky ratio in the frame was always constant on flat surface, so we first cropped the raw image and only kept the ground section. Then, we grayscale and binarize the image, and find the contour using _cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)_. \
 With high enough binarized threshold, we can filter out most of the small contour in dirt road section, but we could not remove all of them, so we tried filtering out by contour area. \
 #figure(
@@ -125,25 +125,66 @@ Through multiple layers of filtering, we finally got valid contours like in the 
 \
 
 === General PID Algorithm
-Unlike in the typical line-following, we drive in the middle of the two white lanes, so the proportional control require center adjustment algorithm for a smooth drive. 
+We generally use the contour's area moment and calculate lane center coordinate and find the error from the center of the frame. However, unlike in the typical line-following, we drive in the middle of the two white lanes, so the proportional control require center adjustment algorithm for a smooth drive. 
+
+\
+#figure(
+  image("images/drive_2lane.jpg", width: 70%),
+  caption: [2 lanes drive with traditional P-control]
+)
+In this case, we find the area moment of two lines and average the Cx value to get the lane center which is shown as light blue point. We calculate the error from the frame center which is shown as red line, and control the yaw. This works for straight roads with two lines, but fails at a steep curve with only one line.
+#code(
+  raw(block:true, lang:"Python",
+    "error = (frame_width / 2.0) - cx
+
+self.state_machine.move.linear.x  = self.linear_speed
+self.state_machine.move.angular.z = self.kp * error"
+  )
+)
+\
+#figure(
+  grid(
+    columns:2,
+    gutter: 1cm,
+    image("images/drive_steep_right.jpg", width: 100%),
+    image("images/drive_steep_left.jpg", width: 100%)
+  ),
+  caption: [Steep curve with single line]
+)
+The light blue dot is the estimated Cx, and it is very close to the frame center (light red line). With the same error calculation as above, the error would be way smaller than the required error to fully turn. This is due to the frame center significantly off from the lane center. To solve this issue, we thought of shifting the frame center more to the side like shown the dark red line on the images. The closer the contour is to the bottom of the frame, the more shift required, so we used the Cy value of the area moment, and tested a proportional relationship between Cy and the magnitude of the shift. The following is the adjusted error calculation code:\
+
+#code(
+  raw(block:true, lang:"Python",
+    "slope = 2.5\n
+if cx <= frame_width * 0.5:
+  slope = -1 * slope
+
+center_shift = slope * cy
+error = center_shift + (frame_width / 2.0) - cx"
+  )
+)
+
+The slope value was adjusted in each state through trial and error ranging $2 < "slope" < 4$.
+
+
 
 \
 === Intentional swerving
 Our PID algorithm worked too well following the road that clue boards right after the steep curve were not in the camera view. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically while driving straight. This allowed the robot to cover a wider area in front of it and increased the chances of detecting clue boards.
-This swerving was implemented in a rather simple way by using a counter that self increments itself for each run(), and changing the "Shift" mentioned ealier periodically.
+This swerving was implemented in a rather simple way by using a counter that self increments itself for each run(), and changing the "Shift" periodically.
 
 #code(
   raw(block: true, lang: "python", 
-  "  slope = 1.4\n
-  if self.count <= 95 and self.count >= 85 and self.count % 2 == 0:
-    slope = 3.7\n
-  if cx <= frame_width * 0.5:
-    slope = -1 * slope\n
-  center_shift = slope * cy
-  error = center_shift + (frame_width / 2.0) - cx
+  "slope = 1.4\n
+if self.count <= 95 and self.count >= 85 and self.count % 2 == 0:
+  slope = 3.7\n
+if cx <= frame_width * 0.5:
+  slope = -1 * slope\n
+center_shift = slope * cy
+error = center_shift + (frame_width / 2.0) - cx
 
-  self.state_machine.move.linear.x  = self.linear_speed
-  self.state_machine.move.angular.z = self.kp * error")
+self.state_machine.move.linear.x  = self.linear_speed
+self.state_machine.move.angular.z = self.kp * error")
 )
 
 This technique was used in "Post_Crosswalk", "Post_Roundabout", and "Dirt_Road" states.
@@ -157,12 +198,18 @@ This technique was used in "Post_Crosswalk", "Post_Roundabout", and "Dirt_Road" 
 === Off-Road Section
 
 #figure(
-    image("images/pre_off_road_edge.png",width: 70%),
-    caption: [Perpendicular to the tape]
+  grid(columns:2,
+  align: center,
+  image("images/tape_pink_raw.png", width: 100%, height: 4cm, fit: "contain"),
+  image("images/tape_edge.png", width: 100%, height: 4cm, fit: "contain"),
+  ),
+  caption: [Perpendicular to the tape]
   )
 
+wawawa
+
 #figure(
-    image("images/home_pink.png",width: 70%),
+    image("images/tape_home_better.png",width: 40%),
     caption: [Homing at the pink tape]
 )
 
@@ -225,7 +272,7 @@ In each driving state, we have a blue board contour detection function which ret
 
 Scored 38 points though unrecorded
 We are the only team with traditional PID control that has reached to the tunnel section and captured the 7th clue board.  
-As a team who did the PID control with the original robot, we think it is very hard to implement PID control robot to finish the course under tight time. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alginement. All the teams that went beyond the tunnel were either using imitation learning or drone PID. 
+As a team who did the PID control with the original robot, we think it is very hard to implement PID control robot to finish the course under tight time. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alignment. All the teams that went beyond the tunnel were either using imitation learning or drone PID. 
 \
 === Future Improvements
 
