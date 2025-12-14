@@ -49,12 +49,12 @@ Shown below is the structure of our ROS nodes and topics. The ROS nodes are in t
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
 \
-Our robot has 3 main ROS nodes, the competition, state machine, and controller GUI nodes. Connecting those nodes are the topics, and we made 5 new topics for debugging purposes alongside the existing topics. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection. All of these images processed inside each state scripts and are internally referenced to the main state_machine node, which then gets published as Image topics.
+Our robot has 3 main ROS nodes, competition, state machine, and controller GUI nodes. Connecting those nodes are the topics, and we made 5 new topics for debugging purposes. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection. All of these images are processed inside each state and are internally referenced to the main state_machine node, which then gets published as Image topics.
 \
-Our CNN is integrated in clue detect state instead of running independently, so we can transition to clue detect state once the robot faces to the clue board. This allows robot to make predictable movement, avoiding unexpected PID control behavior from sudden clue detection.
+Our CNN is integrated in clue detect state instead of running independently. This is done so we can transition to clue detect state once the robot faces to the clue board, avoiding unexpected PID control behavior from sudden clue detection.
 \
 === Finite State Machine Architecture
-Finite State Machine (FSM) was implemented on our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
+Finite State Machine (FSM) was implemented for our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
 \
 #figure(
   // The image function goes here (no '#' needed inside figure)
@@ -64,7 +64,7 @@ Finite State Machine (FSM) was implemented on our robot to manage driving in var
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
 \
-There are multiple state transition that uses clue board, and those are done by using the clue type on the board which gets detected by our CNN model. In some states, there are chances of robot missing the clue board, and failing to transition to the desired state. To avoid that from happening, we decided to have backup state transition conditions if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can be transitioned either by detecting the clue board or by detecting the contour of the lake. This allowed 
+There are multiple state transition using clue board, and those are done by using the clue type detected by our CNN model. In some states, there is a chance of robot missing the clue board, and failing to transition to the desired state. To avoid this, we decided to have backup transition condition if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can happen either by detecting the clue board or by detecting the contour of the lake.
 
 == Controller GUI
 
@@ -72,10 +72,10 @@ There are multiple state transition that uses clue board, and those are done by 
   columns: 2,
   gutter: 0.5cm,
   [  
-    Our controller GUI was used for monitoring different view types, controlling simulation environment, and launching scripts.\
+    We developed a controller GUI for monitoring different view types, controlling simulation environment, and launching scripts.\
     \
-    The primary reason why we developed a controller GUI was to increase productivity by centralizing all control on one window instead of constantly launching different scripts in multiple terminal tabs and going on Gazebo to stop or reset robot.
-    This allowed us to easily modify values on VSCode and test its changes without getting frustrated by moving cursor all over the screen.\
+    The primary reason why we created this GUI was to increase productivity by centralizing all control on one window instead of having multiple terminal tabs and going on Gazebo to stop or reset robot.
+    This allowed us to easily test changes on VSCode without getting frustrated from moving cursor all over the screen.\
     \
     GUI Functionalities:
     - View different driving camera feeds (Raw, Contour, Tape)
@@ -98,9 +98,9 @@ There are multiple state transition that uses clue board, and those are done by 
 == Driving System
 
 === Filtering valid contours
-For the PID driving, extracting the side lines and filtering out any other noises is crucial. 
-We realized that the ground to sky ratio in the frame was always constant on flat surface, so we first cropped the raw image and only kept the ground section. Then, we grayscale and binarize the image, and find the contour using _cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)_. \
-With high enough binarized threshold, we can filter out most of the small contour in dirt road section, but we could not remove all of them, so we tried filtering out by contour area. \
+For the PID driving, extracting the side lines and filtering out any other noises are crucial. 
+We realized that the ground to sky ratio in the frame was always constant on a flat surface, so we first crop the raw image and only keep the ground portion. Then, we gray-scale and binarize the cropped image, and find the contour using _cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)_. \
+With high enough binarized threshold, we can filter out most of the small contour in dirt road section and other similar surface condition, but we could not remove all of them, so we tried filtering out by contour area. \
 #figure(
   image("images/find_contour.png",width: 70%),
   caption: [Contours in dirt road section after filtering by area]
@@ -202,7 +202,7 @@ To make the robot turn left at the entrance of the roundabout, we made the robot
 )
 At the exit of the roundabout, the robot could turn left most of the time because we made the P-control favor left turning with center-lane shift. However, there was a decent chance of failing the turn, so we created a "Post_Roundabout" state which turns left for a short time after entering this state. The transition condition from "Roundabout" state to this state is the contour area of the 4th clue board exceeding threshold area.
 
-=== Off-Road Section
+=== Off-Road
 The strategy for this section was:\
 \
 1. Position the robot perpendicular to the pink tape using edge
