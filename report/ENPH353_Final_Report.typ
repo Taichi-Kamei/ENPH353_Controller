@@ -100,7 +100,7 @@ We realized that the ground to sky ratio in the frame was always constant on a f
 With high enough binarized threshold, we can filter out most of the small contour in dirt road section and other similar surface condition, but we could not eliminate all of them, so we tried filtering out by contour area. 
 
 #figure(
-  image("images/find_contour.png",width: 50%),
+  image("images/find_contour.png",width: 40%),
   caption: [Contours in dirt road section after filtering by area]
 )
 
@@ -253,7 +253,7 @@ For training, we used a 30% validation split. We used an initial learning rate o
 
 
 === Competition Result
-In the competition, our robot achieved an official score of 18 in 240 simulation seconds. We tied for 11th place out of 17 total teams. Unfortunately, our robot was not able to reliably see the clue boards in frame while driving (see @swerve) which caused unexpected bugs to occur. Running our robot again for demonstration purposes after our run, we were able to reach the tunnel and achieve a score of 38 points in 187 simulation seconds. In theory, our robot was able to drive through the entire course and read every clue and get all 57 points. Unfortunately, the clue boards would not appear in frame reliably enough for this to happen in an actual run.
+In the competition, our robot achieved an official score of 18 in 240 simulation seconds. We tied for 11th place out of 17 total teams. Unfortunately, our robot was not able to reliably see the clue boards in frame while driving (see @swerve) which caused unexpected bugs to occur. Running our robot again for demonstration purposes after our run, we were able to reach the tunnel and achieve a score of 38 points in 187 simulation seconds. In principle, our robot could to drive to the tunnel without respawning and read every clue along the way and get 49 points. Unfortunately, the clue boards would not appear in frame reliably enough for this to happen in an actual run.
 #grid(
   columns:2 ,
   figure(
@@ -268,7 +268,7 @@ In the competition, our robot achieved an official score of 18 in 240 simulation
 As a team that developed a PID control system, we think it is very hard to implement. Although it is simpler to start with, there are too many edge cases to efficiently design around. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alignment. All the teams that went beyond the tunnel were either using imitation learning or created a drone. 
 
 === Unused Ideas
-One idea last minute idea we had to try and resolve the issue of clue boards not showing up on our driving line was to change the horizontal FOV of the robot's camera. This would have allowed the robot to see the clue boards more easily. However, we abandonned this idea because it meant we would have to debug our entire driving system through trial and error.
+One last minute idea we had in order to try and resolve the issue of clue boards not showing up on our driving line was to change the horizontal FOV of the robot's camera. This would have allowed the robot to see the clue boards more easily. However, we abandonned this idea because it meant we would have to debug our entire driving system through trial and error.
 
 === Future Improvements
 If we were to develop this robot further, a key area of improvement would be the driving system. The PID control system required too much hardcoding and manual trial and error to design. If we had started designing with a larger FOV camera, it may have been possible. Most of the teams that could drive around reliabliy used imitation learning. Imitation learning would allow us to essentially hardcode a path that we want the robot to follow ("imitate") that would never have ensured we saw every sign. Although, this might cause issues when integrating as it seems quite a few other teams struggled when integrating their IL driving with other neural networks because of the extra computational load.
@@ -305,6 +305,7 @@ If we were to develop this robot further, a key area of improvement would be the
 
 === Intentional swerving <swerve>
 Our PID algorithm followed the outer curver of the road too well, and missed clue boards right after the steep curve because the board was never in the camera frame. We realized this problem too late to be able to simply change the FOV of our camera as that would mean reworking the entire driving system. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically for a specified period. This allowed the robot to cover a wider area and increased the chances of detecting clue boards.
+
 This swerving was implemented in a rather simple way by using a counter that gets incremented every time the state's run function gets called, and changing the "slope" value periodically for $"mod"2 = 0$.
 #code(
   raw(block: true, lang: "python", 
@@ -317,7 +318,7 @@ center_shift = slope * cy
 error = center_shift + (frame_width / 2.0) - cx
 
 self.state_machine.move.linear.x  = self.linear_speed
-self.state_machine.move.angular.z = self.kp * error")
+self.state_machine.move.angular.z = self.kp * error"),
 )
 
 This technique was used in "Post_Crosswalk" and "Post_Roundabout" states.
@@ -336,7 +337,7 @@ This technique was used in "Post_Crosswalk" and "Post_Roundabout" states.
   )
 )
 
-The problem with driving up the mountain was the sky showing up as a huge contour. Because it is always at side and will have big contour area, we can't filter it out using the same method as before. We masked out the pale blue sky by turning the raw image to HSV, create blue mask, and use _cv2.bitwise_not()_ to only remove the blue.
+The problem with driving up the mountain was the sky showing up as a huge contour. Because it is always at side and will have big contour area, we can't filter it out using the same method as before. We masked out the pale blue sky by turning the raw image to HSV, create blue mask, and use `cv2.bitwise_not()` to only remove the blue.
 
 === CNN Summary <cnn_sum>
 Here is the final CNN design we used for the competition and some details about it's performance.
