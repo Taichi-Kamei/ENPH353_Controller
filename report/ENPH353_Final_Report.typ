@@ -24,7 +24,7 @@
 
 #set text(
   lang: "en",
-  size: 12pt
+  size: 11pt
 )
 
 #show figure.where(
@@ -51,7 +51,7 @@ Points were awarded for succesfully identifying the clues to solve the crime. Ho
 Our goal for the competition was to make it possible for our robot to achieve maximum points. Specifically, this meant we wanted to be able to drive through the entire course without using respawning our robot as that would incur point deductions and restrict our maximum point potential. 
 #figure(
   // The image function goes here (no '#' needed inside figure)
-  image("images/ros_map.png", width: 80%),
+  image("images/ros_map.png", width: 75%),
   // Add a caption using a content block ([...])
   caption: [Map of ROS Gazebo Competition Enviroment],
   // Add a label for referencing (use a name enclosed in angle brackets)
@@ -71,7 +71,7 @@ We brainstormed the overall strategy we would follow together. We decided on usi
 Shown below is the structure of our ROS nodes and topics. The ROS nodes are in the black box, and the topics are highlighted in grey. Bold arrows indicate the ROS node interactions through topics, while dashed arrows represents local access relationships.
 #figure(
   // The image function goes here (no '#' needed inside figure)
-  image("images/ROS.pdf", width: 90%),
+  image("images/ROS.pdf", width: 95%),
   // Add a caption using a content block ([...])
   caption: [ROS Node and Topic Diagram],
   // Add a label for referencing (use a name enclosed in angle brackets)
