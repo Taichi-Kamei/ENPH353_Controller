@@ -65,7 +65,7 @@ Our goal for the competition was to make it possible for our robot to achieve ma
 )
 
 === Contribution Split
-We brainstormed the overall strategy we would follow together. We decided on using PID navigation as it would be simpler to implement than an imitation learning or reinforcement learning system. Taichi developed the robot's PID navigation algorithm and state machine. For detection of clue boards and optical character recognition, we decided to use a simpler system based on masking the specific blue colour of the board and a small convolutional neural network as opposed to using a YOLO based system. Bowen developed the clue board detection and the convolutional neural network for optical character recognition.
+We brainstormed the overall strategy we would follow together. We decided on using PID navigation as it would be simpler to implement than an imitation learning or reinforcement learning system. Taichi developed the robot's PID navigation algorithm and state machine. For detection of clue boards and optical character recognition (OCR), we decided to use a simpler system based on masking the specific blue colour of the board and a small convolutional neural network as opposed to using a YOLO based system. Bowen developed the clue board detection and the convolutional neural network (CNN) for OCR.
 
 === ROS Architecture
 Shown below is the structure of our ROS nodes and topics. The ROS nodes are in the black box, and the topics are highlighted in grey. Bold arrows indicate the ROS node interactions through topics, while dashed arrows represents local access relationships.
@@ -76,12 +76,12 @@ Shown below is the structure of our ROS nodes and topics. The ROS nodes are in t
   caption: [ROS Node and Topic Diagram],
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
-Our robot has 3 main ROS nodes, competition, state machine, and controller GUI nodes. Connecting those nodes are the topics, and we made 5 new topics for debugging purposes."/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection.  All of these images are processed inside each state and are internally referenced to the main state_machine node, which then gets published as Image topics.
+Our robot has 3 main ROS nodes, competition, state machine, and controller GUI nodes (see @gui). Connecting those nodes are the topics, and we made 5 new topics for debugging purposes.`/processed_img` and `/tape_img` are used for driving, and `/board_mask_img`, `/flattened_plate_img`, and `/letters_img` are used for clue detection.  All of these images are processed inside each state and are internally referenced to the main `state_machine` node, which then gets published as Image topics.
 
-Our CNN is integrated in clue detect state instead of running independently. This is done so we can transition to clue detect state once the robot faces to the clue board, avoiding unexpected PID control behavior from sudden clue detection.
+Our CNN is integrated in a `clue_detect` state instead of running independently. This is done so we can transition to the state once the robot faces to the clue board, avoiding unexpected PID control behavior from sudden clue detection.
 
 === Finite State Machine Architecture
-Finite State Machine (FSM) was implemented for our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
+A Finite State Machine (FSM) was implemented for our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
 #figure(
   // The image function goes here (no '#' needed inside figure)
   image("images/FSM.pdf", width:80%),
@@ -89,9 +89,192 @@ Finite State Machine (FSM) was implemented for our robot to manage driving in va
   caption: [Finite State Machine Diagram],
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
-There are multiple state transition using clue board, and those are done by using the clue type detected by our CNN model. In some states, there is a chance of robot missing the clue board, and failing to transition to the desired state. To avoid this, we decided to have backup transition condition if possible. For example, the transition from "Dirt_Road" to "Narrow_Road" can happen either by detecting the clue board or by detecting the contour of the lake.
+There are multiple state transition based on clue boards, and those are done by using the clue type detected by our OCR CNN model. In some states, there is a chance of robot missing the clue board, and failing to transition to the desired state. To avoid this, we decided to have backup transition condition if possible. For example, the transition from `Dirt_Road` to `Narrow_Road` can happen either by detecting the clue board or by detecting the contour of the Lake of Despair.
 
-== Controller GUI
+== Driving System
+
+=== Filtering valid contours
+For the PID driving, extracting the side lines and filtering out any other noises are crucial. 
+We realized that the ground to sky ratio in the frame was always constant on a flat surface, so we first crop the raw image and only keep the ground portion. Then, we gray-scale and binarize the cropped image, and find the contour using `cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)`.
+
+With high enough binarized threshold, we can filter out most of the small contour in dirt road section and other similar surface condition, but we could not eliminate all of them, so we tried filtering out by contour area. 
+
+#figure(
+  image("images/find_contour.png",width: 50%),
+  caption: [Contours in dirt road section after filtering by area]
+)
+
+As it can be seen, undesired contours still remained after the area filtering. Due to the nature of camera FOV, the contour area gets stretched at the bottom. Therefore, some noises can suddenly pop up at the bottom of the frame even if those were initially filtered out. To resolve this issue, we added another filtering layer using `cv2. boundingRect()`, and only keep the bounding rectangles which touch the sides and is not at the middle bottom of the frame.
+
+#figure(
+
+  grid(
+  columns: 3,
+  gutter: 0.1cm,
+
+  image("images/dirt_road_contour.png", width: 70%),
+  image("images/narrow_road_drive.png", width: 70%),
+  image("images/dirt_road_steep.png", width: 70%)
+),
+  caption: [Valid contours],
+)
+
+Through multiple layers of filtering, we finally got valid contours like in the image above.
+
+=== General PID Algorithm
+We generally use the contour's area moment, calculate the coordinates of the center of the lane, and find the error between center coordinate and the center of the frame. However, unlike line-following a single line, we were driving in the middle of two white lines, so the proportional control required an adjustment to the center lane adjustment algorithm for a smoother drive. 
+#figure(
+  image("images/drive_2lane.jpg", width: 50%),
+  caption: [2 lanes drive with traditional P-control]
+)
+In this case, we find the area moment of two lines and average the Cx value to get the lane center which is shown as a light blue point. We calculate the error from the frame center which is shown as a red line, and control the yaw. This works for straight roads with two lines, but fails at a steep curve where there is only one line.
+#code(
+  raw(block:true, lang:"Python",
+    "error = (frame_width / 2.0) - cx
+
+self.state_machine.move.linear.x  = self.linear_speed
+self.state_machine.move.angular.z = self.kp * error"
+  )
+)
+#figure(
+  grid(
+    columns:2,
+    gutter: 1cm,
+    image("images/drive_steep_right.jpg", width: 100%),
+    image("images/drive_steep_left.jpg", width: 100%)
+  ),
+  caption: [Steep curve with single line]
+)
+The light blue dot is the estimated Cx, and it is very close to the frame center (light red). With the same error calculation as above, the error would be way smaller than the required error to fully turn. This is due to the frame center being significantly off from the lane center. To solve this issue, we thought of shifting the frame center more to the side like shown as the dark red line on the images. The closer the contour is to the bottom of the frame, the more shift  that's required, so we used the Cy value of the area moment, and tested a proportional relationship between Cy and the magnitude of the shift. The following is the adjusted error calculation code:
+#code(
+  raw(block:true, lang:"Python",
+    "slope = 2.5\n
+if cx <= frame_width * 0.5:
+  slope = -1 * slope
+
+center_shift = slope * cy
+error = center_shift + (frame_width / 2.0) - cx"
+  )
+)
+The slope value was adjusted in each state through trial and error, which ranged from 2 to 4.
+
+It turned out that a single line driving is much more stable than dual-line driving, so we ended up following a single line with P-control for most of the time. We made the robot move straight while two lines were detected (and the error was within certain range). However, There were some challenges that arose when trying to see clue boards while driving along this path. For details on our attempt to solve these issues see @swerve.
+
+=== Roundabout
+Another difficulty we encountered were the left turns at the entrance and exit of the roundabout.
+
+For the entrance, we made the robot turn left while exiting the `Truck` state so the robot can start driving clock-wise when it enters the `Roundabout` state. 
+#figure(
+    image("images/roundabout_4thclue.png",width: 30%),
+    caption: [Using 4th clue board contour area as transition condition]
+)
+for exiting roundabout, the robot would turn left most of the time because we made the P-control favor left turning in the `Roundabout` state. However, there was a decent chance of robot failing to do so, so we created a `Post_Roundabout` state which rotates left for a short time after entering this state. The transition condition from `Roundabout` state to this state is the contour area of the 4th clue board exceeding a certain threshold area.
+
+=== Off-Road
+The strategy for this section was:
+1. Position the robot perpendicular to the pink tape using the edge
+#figure(
+  grid(columns:2,
+
+  image("images/tape_pink_raw.png", width: 100%, height: 4cm, fit: "contain"),
+  image("images/tape_edge.png", width: 100%, height: 4cm, fit: "contain"),
+  ),
+  caption: [Positioning robot perpendicular to the pink tape]
+  )
+2. Move straight for some period of time
+3. Turn 90 degrees left
+4. Move straight and go over the hill
+5. Home toward the pink tape next to the tunnel with PID
+#figure(
+    image("images/tape_home_better.png",width: 25%),
+    caption: [Homing at the pink tape]
+)
+6. Move straight until the pink contour area is above a threshold
+7. Detect the clue
+8. Position the robot perpendicular to the 2nd pink tape.
+// #figure(
+//     image("images/2nd_pink_align.png",width: 50%),
+//     caption: [Positioning perpendicular to the pink tape]
+// )
+For details on navigating the mountain which ended up being unused, see @mountain.
+
+== Obstacle Detection
+
+=== Pedestrian & Truck
+#figure(
+    image("images/pedestrian_detection.png",width: 50%),
+    caption: [Pedestrian detection using `cv2.absdiff()`]
+)
+Our strategy for pedestrian and truck detection was to stop the robot when entering the state, using `cv2.absdiff()` to find the difference in two consecutive frames. If there were no difference for 2 consecutive frames, we would stop driving.
+
+The stop condition is the same during both `Pedestrian` and `Truck` states, but detecting the transition to each state is different. \
+For the pedestrian detection, we detect the red tape using a red mask, enter `Pedestrian` state, stop the robot, and detect moving objects. We cropped the top part of the frame so that the truck in the background wouldn't be considered as a moving pedestrian.
+#figure(
+    image("images/pre_truck_detection.png",width: 50%),
+    caption: [Flat and wide bounding rectangle at the top of the frame]
+)
+For the `Truck` state, we made a `Pre_Truck` state which transitions to the `Truck` state when there is a wide and flat bounding rectangle at the top as it is shown in the top right side of this figure. Exiting this state, the robot will turn slightly to the right so the camera can capture the truck better.
+
+=== Clue Detection transition Algorithm
+#figure(
+    image("images/homing_board.png",width: 30%),
+    caption: [Homing at the board]
+)
+Our clue detection CNN runs inside the `Clue_Detect` state only when the robot is facing the board and is close enough. By doing so, we can ensure the entire clue board is in frame and avoid unexpected behavior.
+In each driving state, we have a clue board detection function which returns true when contours are above a  certain minimum area threshold. When that becomes true, the robot transitions to the `Clue_Detect` state. We use PID homing to face towards the board, run the clue detection script, and move the robot closer to the board until the OCR function returns a valid set of letters. Once the letters are detected, the robot sends it to the score tracker, turns away from the clue board, and transitions to the next state depending on the clue type that was detected. We implemented downtime after clue detection because the robot sometimes catches the board again and gets stuck in an endless loop in the `Clue Detect` state.
+
+== Clue Detection
+=== Plate Extraction
+Once we have a clue board in the raw camera feed, we first `create_blue_mask` out of the raw image using `cv2.inRange` (we found the HSV range of [80, 125, 0] to [160, 255, 255] to work the best). We then `extract_board` by taking the largest contour (and bigger than a `min_sign_area`) and then use `cv2.approxPolyDP` to find the four corners of the plate. Using `cv2.findHomography` and `cv2.warpPerspective` we can then perspective transform it to make a flat projection of the clue board. We repeat this process again except masking for white/gray pixels in order to `extract_plate`.
+#figure(
+  image("images/image_processing.png", width: 70%),
+  caption: [Plate Extraction Image Processing Pipeline]
+)
+
+=== Letter Extraction
+With our plate image, we mask for the blue letters and find the bounding boxes of all the contours using `cv2.boundingRect`. The plates always have the two words different rows so we `group_contours_into_rows` by identifying whether a contour is in the upper or lower cluster. As well, the letters are sometimes too close together horizontally and get placed into one bounding box so we `process_single_row` and split up bounding boxes with anomalous widths. The letters are then resized to our OCR CNN model's input dimensions (100, 150) and the input tensor is passed through to identify the clue category and clue value strings. Since the clue categories are always the same, we use `rapidfuzz.process.extractOne` to do fuzzy matching based on Levenshtein Distance in case the OCR makes a mistake. For more details on our CNN model, see @cnn_sum.
+#figure(
+  image("images/letter_extraction_pipeline.png", width: 70%),
+  caption: [Letter Extraction Image Processing Pipeline]
+)
+
+=== Optical Character Recognition Convolutional Neural Network
+In order to train our CNN, we chose to start our training dataset generation from the plates instead of generating a dataset straight from clean images of the `UbuntuMono-R.tff` font because then artifacts of different letters neighbouring each other would be preserved in the dataset. 
+
+We generated clean plates with random two pairs of five character alphanumeric strings. To ensure a uniform dataset, we made sure each character appeared on a plate 10 times for a total of 36 clean plates. Then each clean plate was distorted in 20 different ways with a Keras ImageDataGenerator applying random rotations, zooms, brightnesses, and shears, as well as our custom preprocessing function, `mangle`, which added a random noise map, random gaussian blur, and random small perspective warping. These distorted versions were similar to what the plate looked like after extraction from the Gazebo simulation. In total we had 200 training images per character for a total of 7200 training images. For more details on the training data generation, see @cnn_data.
+#figure(
+  image("images/dataset.png", width: 80%),
+  caption: [ImageDataGenerator and `mangle` examples]
+)
+
+For training, we used a 30% validation split. We used an initial learning rate of $1 times 10^(-4)$ for 100 epochs. However, we also had an `EarlyStopping` callback monitoring validation loss with a patience of 10 epochs and a `ReduceLROnPlateau` callback which would reduce the learning right by a factor of 0.99 when validation loss plateaued for 3 epochs. The CNN was trained for 87/100 epochs and restored the best weights from epoch 77.  The final categorical cross entropy loss 0.1740 and the validation loss was 0.1847. For more details on our CNN model, see @cnn_sum.
+
+== Conclusion
+
+
+=== Competition Result
+In the competition, our robot achieved an official score of 18 in 240 simulation seconds. We tied for 11th place out of 17 total teams. Unfortunately, our robot was not able to reliably see the clue boards in frame while driving (see @swerve) which caused unexpected bugs to occur. Running our robot again for demonstration purposes after our run, we were able to reach the tunnel and achieve a score of 38 points in 187 simulation seconds. In theory, our robot was able to drive through the entire course and read every clue and get all 57 points. Unfortunately, the clue boards would not appear in frame reliably enough for this to happen in an actual run.
+#grid(
+  columns:2 ,
+  figure(
+  image("images/7th_clue_detect.png", width: 75%),
+  caption: [7th Clue Detected]
+  ),
+  figure(
+  image("images/comp_result.png", width: 120%),
+  caption: [Unofficial Demonstration Run During Competition]
+  )
+)
+As a team that developed a PID control system, we think it is very hard to implement. Although it is simpler to start with, there are too many edge cases to efficiently design around. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alignment. All the teams that went beyond the tunnel were either using imitation learning or created a drone. 
+
+=== Unused Ideas
+One idea last minute idea we had to try and resolve the issue of clue boards not showing up on our driving line was to change the horizontal FOV of the robot's camera. This would have allowed the robot to see the clue boards more easily. However, we abandonned this idea because it meant we would have to debug our entire driving system through trial and error.
+
+=== Future Improvements
+If we were to develop this robot further, a key area of improvement would be the driving system. The PID control system required too much hardcoding and manual trial and error to design. If we had started designing with a larger FOV camera, it may have been possible. Most of the teams that could drive around reliabliy used imitation learning. Imitation learning would allow us to essentially hardcode a path that we want the robot to follow ("imitate") that would never have ensured we saw every sign. Although, this might cause issues when integrating as it seems quite a few other teams struggled when integrating their IL driving with other neural networks because of the extra computational load.
+
+== Appendix
+=== Controller GUI <gui>
 
 #grid(
   columns: 2,
@@ -120,182 +303,8 @@ There are multiple state transition using clue board, and those are done by usin
   )
 )
 
-== Driving System
-
-=== Filtering valid contours
-For the PID driving, extracting the side lines and filtering out any other noises are crucial. 
-We realized that the ground to sky ratio in the frame was always constant on a flat surface, so we first crop the raw image and only keep the ground portion. Then, we gray-scale and binarize the cropped image, and find the contour using _cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)_.
-
-With high enough binarized threshold, we can filter out most of the small contour in dirt road section and other similar surface condition, but we could not eliminate all of them, so we tried filtering out by contour area. 
-
-#figure(
-  image("images/find_contour.png",width: 50%),
-  caption: [Contours in dirt road section after filtering by area]
-)
-
-As it can be seen, undesired contours still remained after the area filtering. Due to the nature of camera FOV, the contour area gets stretched at the bottom. Therefore, some noises can suddenly pop up at the bottom of the frame even if those were initially filtered out. To resolve this issue, we added another filtering layer using _cv2. boundingRect()_, and only keep the bounding rectangles which touch the sides and is not at the middle bottom of the frame.
-
-#figure(
-
-  grid(
-  columns: 3,
-  gutter: 0.1cm,
-
-  image("images/dirt_road_contour.png", width: 70%),
-  image("images/narrow_road_drive.png", width: 70%),
-  image("images/dirt_road_steep.png", width: 70%)
-),
-  caption: [Valid contours],
-)
-
-Through multiple layers of filtering, we finally got valid contours like in the image above.
-
-=== General PID Algorithm
-We generally use contour's area moment, calculate lane center coordinate, and find the error between center coordinate and the center of the frame. However, unlike in the typical line-following, we drive in the middle of the two white lines, so the proportional control require center lane adjustment algorithm for a smooth drive. 
-#figure(
-  image("images/drive_2lane.jpg", width: 50%),
-  caption: [2 lanes drive with traditional P-control]
-)
-In this case, we find the area moment of two lines and average the Cx value to get the lane center which is shown as light blue point. We calculate the error from the frame center which is shown as red line, and control the yaw. This works for straight roads with two lines, but fails at a steep curve where there is only one line.
-#code(
-  raw(block:true, lang:"Python",
-    "error = (frame_width / 2.0) - cx
-
-self.state_machine.move.linear.x  = self.linear_speed
-self.state_machine.move.angular.z = self.kp * error"
-  )
-)
-#figure(
-  grid(
-    columns:2,
-    gutter: 1cm,
-    image("images/drive_steep_right.jpg", width: 100%),
-    image("images/drive_steep_left.jpg", width: 100%)
-  ),
-  caption: [Steep curve with single line]
-)
-The light blue dot is the estimated Cx, and it is very close to the frame center (light red). With the same error calculation as above, the error would be way smaller than the required error to fully turn. This is due to the frame center significantly off from the lane center. To solve this issue, we thought of shifting the frame center more to the side like shown the dark red line on the images. The closer the contour is to the bottom of the frame, the more shift required, so we used the Cy value of the area moment, and tested a proportional relationship between Cy and the magnitude of the shift. The following is the adjusted error calculation code:
-#code(
-  raw(block:true, lang:"Python",
-    "slope = 2.5\n
-if cx <= frame_width * 0.5:
-  slope = -1 * slope
-
-center_shift = slope * cy
-error = center_shift + (frame_width / 2.0) - cx"
-  )
-)
-The slope value was adjusted in each state through trial and error, which ranged from 2 to 4.
-
-It turned out that a single line driving is far more stable than dual-line driving, so we ended up using single line P-control for most of the time, and made the robot move straight while two lines were detected and the error was within certain range. There were some challenges with seeing clue boards while driving. For details on our attempt to solve these issues see @swerve.
-
-=== Roundabout
-Difficulties we encountered other than the truck detection was the let turn at the entrance and at the exit of the roundabout.
-
-For the entrance, we made the robot turn left while exiting the "Truck" state so the robot can start drive clock-wise when it enters the "Roundabout" state. 
-#figure(
-    image("images/roundabout_4thclue.png",width: 30%),
-    caption: [Using 4th clue board contour area as transition condition]
-)
-for exiting roundabout, the robot could turn left for most of the time because we made the P-control favor left turning with center-lane shift algorithm in "Roundabout" state. However, there was a decent chance of robot failing to do so, so we created a "Post_Roundabout" state which rotates left for a short time after entering this state. The transition condition from "Roundabout" state to this state is the contour area of the 4th clue board exceeding threshold area.
-
-=== Off-Road
-The strategy for this section was:
-1. Position the robot perpendicular to the pink tape using edge
-#figure(
-  grid(columns:2,
-
-  image("images/tape_pink_raw.png", width: 100%, height: 4cm, fit: "contain"),
-  image("images/tape_edge.png", width: 100%, height: 4cm, fit: "contain"),
-  ),
-  caption: [Positioning robot perpendicular to the pink tape]
-  )
-2. Move straight for some period
-3. Turn 90 degrees left
-4. Move straight and go over the hill
-5. Home at the pink tape next to the tunnel with PID
-#figure(
-    image("images/tape_home_better.png",width: 25%),
-    caption: [Homing at the pink tape]
-)
-6. Move straight until pink contour area is above threshold
-7. Detect clue
-8. Position the robot perpendicular to the 2nd pink tape.
-// #figure(
-//     image("images/2nd_pink_align.png",width: 50%),
-//     caption: [Positioning perpendicular to the pink tape]
-// )
-For details on navigating the mountain which ended up being unused, see @mountain
-
-== Obstacle Detection
-
-=== Pedestrian & Truck
-#figure(
-    image("images/pedestrian_detection.png",width: 50%),
-    caption: [Pedestrian detection using cv2.absdiff()]
-)
-Our strategy for pedestrian and truck detection was to stop the robot when entering the state, use _cv2.absdiff()_ to find the difference in two consecutive frames, and start driving if there were no difference for 2 consecutive times.
-
-The detection method is the same for both states, but transition to each detecting state is different. \
-For the pedestrian detection, we detect the red tape using a red mask, enter "Pedestrian" state, stop the robot, and detect for moving object. We cropped the top part of the frame so that the truck at the back wouldn't be considered as a moving pedestrian.
-#figure(
-    image("images/pre_truck_detection.png",width: 50%),
-    caption: [Flat and wide bounding rectangle at the top of the frame]
-)
-For the truck state, we made a "Pre_Truck" state which transitions to the "Truck" state when there is a wide and flat bounding rectangle at the top as it is shown in the top right side of the image. At the exit of this state, the robot will turn slightly to the right so the camera can capture the truck better.
-
-=== Clue Detection transition Algorithm
-#figure(
-    image("images/homing_board.png",width: 30%),
-    caption: [Homing at the board]
-)
-Our clue detection CNN runs inside the "Clue_Detect" state only when the robot is facing the board and is close enough. By doing so, we can avoid unexpected behavior, and maximize the chance of predicting right clue.
-In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and move the robot closer to the board until the CNN function returns a valid letters. Once the letters are detected, the robot sends it to the score tracker, face away from the clue board, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes catch the board again and gets stuck in "Clue Detect" state.
-
-== Clue Detection
-=== Plate Extraction
-Once we have a clue board in the raw camera feed, we first `create_blue_mask` out of the raw image using `cv2.inRange` (we found the HSV range of [80, 125, 0] to [160, 255, 255] to work the best). We then `extract_board` by taking the largest contour (and bigger than a `min_sign_area`) and then use `cv2.approxPolyDP` to find the four corners of the plate. Using `cv2.findHomography` and `cv2.warpPerspective` we can then perspective transform it to make a flat projection of the clue board. We repeat this process again except masking for white/gray pixels in order to `extract_plate`.
-#figure(
-  image("images/image_processing.png", width: 80%),
-  caption: [Plate Extraction Image Processing Pipeline]
-)
-
-=== Letter Extraction
-With our plate image, we mask for the blue letters and find the bounding boxes of all the contours using `cv2.boundingRect`. The plates always have the two words different rows so we `group_contours_into_rows` by identifying whether a contour is in the upper or lower cluster. As well, the letters are sometimes too close together horizontally and get placed into one bounding box so we `process_single_row` and split up bounding boxes with outlying widths. The letters are then resized to our OCR CNN model's input dimensions (100, 150) and the input tensor is passed through to identify the clue category and clue value strings. For more details on our CNN model, see @cnn_sum.
-#figure(
-  image("images/letter_extraction_pipeline.png", width: 100%),
-  caption: [Letter Extraction Image Processing Pipeline]
-)
-
-=== Optical Character Recognition Convolutional Neural Network
-In order to train our CNN, we chose to start our training dataset generation from the plates instead of generating a dataset straight from clean images of the `UbuntuMono-R.tff` font because then artifacts of different letters neighbouring each other would be preserved in the dataset. 
-
-We generated clean plates with random five character alphanumeric strings. To ensure a uniform dataset, we made sure each character appeared on a plate 10 times for a total of 360 clean plates. Then each clean plate was distorted in 20 different ways with a Keras ImageDataGenerator applying random rotations, zooms, and brightness changes, as well as our custom preprocessing function, `mangle`, which added a random noise map, random gaussian blur, and random small perspective transforms. In total we had 200 training images per character for a total of 7200 training images. For more details on the training data generation, see @cnn_data.
-
-For training, we used a 30% validation split. We used an initial learning rate of $1 times 10^(-4)$ for 100 epochs. However, we also had an `EarlyStopping` callback monitoring validation loss with a patience of 10 epochs and a `ReduceLROnPlateau` callback which would reduce the learning right by a factor of 0.99 when validation loss plateaued for 3 epochs. The CNN was training for 87/100 epochs and restored the best weights from epoch 77.  The final categorical cross entropy loss 0.1740 and the validation loss was 0.1847
-
-== Conclusion
-
-
-=== Competition Result
-#figure(
-  image("images/7th_clue_detect.png", width: 80%),
-  caption: [7th Clue Detected]
-)
-#figure(
-  image("images/comp_result.png", width: 80%),
-  caption: [Unofficial but during competition result]
-)
-
-Scored 38 points though unrecorded.
-We were the only team with traditional PID control that has reached to the tunnel section and captured the 7th clue board.  
-As a team who did the PID control with the original robot, we think it is very hard to implement PID control robot to finish the course under tight time. This is mainly due to the code complexity required and unavoidable uncertainty at the off-road section arising from 2nd pink tape homing, 2nd pink tape alignment. All the teams that went beyond the tunnel were either using imitation learning or drone PID. 
-
-=== Future Improvements
-Use imitation learning
-== Appendix
 === Intentional swerving <swerve>
-Our PID algorithm followed the outer curver of the road too well, and missed clue boards right after the steep curve because the board was never in the camera frame. We realized this too late to simply change the FOV of our camera as that would mean reworking the entire driving system. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically for a specified period. This allowed the robot to cover a wider area and increased the chances of detecting clue boards.
+Our PID algorithm followed the outer curver of the road too well, and missed clue boards right after the steep curve because the board was never in the camera frame. We realized this problem too late to be able to simply change the FOV of our camera as that would mean reworking the entire driving system. To solve this problem, we implemented intentional swerving in which the robot would swerve left and right periodically for a specified period. This allowed the robot to cover a wider area and increased the chances of detecting clue boards.
 This swerving was implemented in a rather simple way by using a counter that gets incremented every time the state's run function gets called, and changing the "slope" value periodically for $"mod"2 = 0$.
 #code(
   raw(block: true, lang: "python", 
@@ -328,6 +337,7 @@ This technique was used in "Post_Crosswalk" and "Post_Roundabout" states.
 )
 
 The problem with driving up the mountain was the sky showing up as a huge contour. Because it is always at side and will have big contour area, we can't filter it out using the same method as before. We masked out the pale blue sky by turning the raw image to HSV, create blue mask, and use _cv2.bitwise_not()_ to only remove the blue.
+
 === CNN Summary <cnn_sum>
 Here is the final CNN design we used for the competition and some details about it's performance.
 #table(
@@ -380,3 +390,123 @@ Best Epoch:\
   )
 
 === CNN Dataset Generation <cnn_data>
+To ensure each alphanumeric character was generated 10 times, we used the following code:
+```python 
+alphanumeric = ""
+for i in range(0, 10):
+  alphanumeric += (string.digits + string.ascii_uppercase)
+
+l = list(alphanumeric)
+random.shuffle(l)
+alphanumeric = ''.join(l)
+
+for i in range(0, NUMBER_OF_PLATES):
+
+    # Pick first word
+    key = alphanumeric[:WORD_LEN]
+    alphanumeric = alphanumeric[WORD_LEN:]
+
+    # Pick second word
+    value = alphanumeric[:WORD_LEN]
+    alphanumeric = alphanumeric[WORD_LEN:]
+
+    blank_plate_pil = Image.fromarray(banner_canvas)
+    # Get a drawing context
+    draw = ImageDraw.Draw(blank_plate_pil)
+    font_size = 90
+    monospace = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
+                                    font_size)
+    font_color = (255,0,0)
+    draw.text((250, 30), key, font_color, font=monospace)
+    draw.text((30, 250), value, font_color, font=monospace)
+    # Convert back to OpenCV image and save
+    populated_banner = np.array(blank_plate_pil)
+
+    # Save image
+    cv2.imwrite(os.path.join(SCRIPT_PATH+"unlabelled/",
+                                "plate_" + key + value + ".png"), populated_banner)
+```
+This shuffles a string with 10 of every alphanumeric character and then draws 5 character words onto 36 different plates.
+
+We created 20 different distortions of each clean plate with the following data generator. Random rotations, zooms, brightnesses, shears, noise maps, blurring, perspective warping are applied to the clean plates to make them more realistic.
+```python
+ImageDataGenerator(rotation_range=2, zoom_range=0.05,
+                             brightness_range=[0.4, 1.0], shear_range=2, preprocessing_function=mangle)
+
+def mangle(img,
+              noise_std_range=(0.025, 0.05),
+              blur_ksize_range=(5, 15),
+              perspective_prob=0.25,
+              perspective_scale_range=(0.025, 0.05)):
+    """
+    Randomly add Gaussian noise, Gaussian blur, and perspective transform to a color image.
+
+    Parameters:
+    - img: input image, assumed uint8 BGR or RGB (0-255)
+    - noise_std_range: tuple, min and max standard deviation for Gaussian noise
+    - blur_ksize_range: tuple, min and max kernel size (odd integers) for Gaussian blur
+    - perspective_prob: probability of applying perspective transform (0-1)
+    - perspective_scale_range: tuple, min and max scale for perspective distortion
+
+    Returns:
+    - Augmented image, uint8
+    """
+    img = img.astype(np.float32) / 255.0  # normalize to 0-1
+
+    # Random Gaussian noise
+    std = np.random.uniform(noise_std_range[0], noise_std_range[1])
+    noise = np.random.normal(0, std, img.shape)
+    img_noisy = img + noise
+    img_noisy = np.clip(img_noisy, 0, 1)
+
+    # Random Gaussian blur
+    ksize = np.random.randint(blur_ksize_range[0], blur_ksize_range[1] + 1)
+    # Make sure kernel size is odd
+    if ksize % 2 == 0:
+        ksize += 1
+    img_blur = cv2.GaussianBlur(img_noisy, (ksize, ksize), 0)
+
+    # Random perspective transform (applied with probability)
+    if np.random.random() < perspective_prob:
+        h, w = img_blur.shape[:2]
+
+        # Define original corners (clockwise from top-left)
+        src_corners = np.array([
+            [0, 0],      # top-left
+            [w-1, 0],    # top-right
+            [w-1, h-1],  # bottom-right
+            [0, h-1]     # bottom-left
+        ], dtype=np.float32)
+
+        # Randomly perturb corners for perspective effect
+        scale = np.random.uniform(perspective_scale_range[0], perspective_scale_range[1])
+
+        # Generate random offsets for each corner
+        dst_corners = src_corners.copy()
+
+        # Top-left corner: shift right and down
+        dst_corners[0, 0] += np.random.uniform(0, scale * w)  # x: right
+        dst_corners[0, 1] += np.random.uniform(0, scale * h)  # y: down
+
+        # Top-right corner: shift left and down
+        dst_corners[1, 0] -= np.random.uniform(0, scale * w)  # x: left
+        dst_corners[1, 1] += np.random.uniform(0, scale * h)  # y: down
+
+        # Bottom-right corner: shift left and up
+        dst_corners[2, 0] -= np.random.uniform(0, scale * w)  # x: left
+        dst_corners[2, 1] -= np.random.uniform(0, scale * h)  # y: up
+
+        # Bottom-left corner: shift right and up
+        dst_corners[3, 0] += np.random.uniform(0, scale * w)  # x: right
+        dst_corners[3, 1] -= np.random.uniform(0, scale * h)  # y: up
+
+        # Calculate perspective transform matrix
+        M = cv2.getPerspectiveTransform(src_corners, dst_corners)
+
+        # Apply perspective transform
+        img_perspective = cv2.warpPerspective(img_blur, M, (w, h),
+                                              borderMode=cv2.BORDER_REFLECT)
+        img_blur = img_perspective
+
+    return (img_blur * 255).astype(np.uint8)                         
+```
