@@ -51,7 +51,7 @@ Points were awarded for succesfully identifying the clues to solve the crime. Ho
 Our goal for the competition was to make it possible for our robot to achieve maximum points. Specifically, this meant we wanted to be able to drive through the entire course without using respawning our robot as that would incur point deductions and restrict our maximum point potential. 
 #figure(
   // The image function goes here (no '#' needed inside figure)
-  image("images/ros_map.png", width: 100%),
+  image("images/ros_map.png", width: 80%),
   // Add a caption using a content block ([...])
   caption: [Map of ROS Gazebo Competition Enviroment],
   // Add a label for referencing (use a name enclosed in angle brackets)
@@ -194,7 +194,7 @@ Difficulties we encountered other than the truck detection was the let turn at t
 
 For the entrance, we made the robot turn left while exiting the "Truck" state so the robot can start drive clock-wise when it enters the "Roundabout" state. 
 #figure(
-    image("images/roundabout_4thclue.png",width: 40%),
+    image("images/roundabout_4thclue.png",width: 30%),
     caption: [Using 4th clue board contour area as transition condition]
 )
 for exiting roundabout, the robot could turn left for most of the time because we made the P-control favor left turning with center-lane shift algorithm in "Roundabout" state. However, there was a decent chance of robot failing to do so, so we created a "Post_Roundabout" state which rotates left for a short time after entering this state. The transition condition from "Roundabout" state to this state is the contour area of the 4th clue board exceeding threshold area.
@@ -215,15 +215,16 @@ The strategy for this section was:
 4. Move straight and go over the hill
 5. Home at the pink tape next to the tunnel with PID
 #figure(
-    image("images/tape_home_better.png",width: 30%),
+    image("images/tape_home_better.png",width: 25%),
     caption: [Homing at the pink tape]
 )
 6. Move straight until pink contour area is above threshold
-7. Position the robot perpendicular to the tape.
-#figure(
-    image("images/2nd_pink_align.png",width: 50%),
-    caption: [Positioning perpendicular to the pink tape]
-)
+7. Detect clue
+8. Position the robot perpendicular to the 2nd pink tape.
+// #figure(
+//     image("images/2nd_pink_align.png",width: 50%),
+//     caption: [Positioning perpendicular to the pink tape]
+// )
 For details on navigating the mountain which ended up being unused, see @mountain
 
 == Obstacle Detection
