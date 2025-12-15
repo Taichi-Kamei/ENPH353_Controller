@@ -58,7 +58,7 @@ Our goal for the competition was to make it possible for our robot to achieve ma
 )
 #figure(
   // The image function goes here (no '#' needed inside figure)
-  image("images/clue_board_example_small.png", width: 100%),
+  image("images/clue_board_example_small.png", width: 60%),
   // Add a caption using a content block ([...])
   caption: [Simulated Camera Feed of Clue Board],
   // Add a label for referencing (use a name enclosed in angle brackets)
@@ -71,12 +71,12 @@ We brainstormed the overall strategy we would follow together. We decided on usi
 Shown below is the structure of our ROS nodes and topics. The ROS nodes are in the black box, and the topics are highlighted in grey. Bold arrows indicate the ROS node interactions through topics, while dashed arrows represents local access relationships.
 #figure(
   // The image function goes here (no '#' needed inside figure)
-  image("images/ROS.pdf", width: 110%),
+  image("images/ROS.pdf", width: 90%),
   // Add a caption using a content block ([...])
   caption: [ROS Node and Topic Diagram],
   // Add a label for referencing (use a name enclosed in angle brackets)
 )
-Our robot has 3 main ROS nodes, competition, state machine, and controller GUI nodes. Connecting those nodes are the topics, and we made 5 new topics for debugging purposes. "/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection. All of these images are processed inside each state and are internally referenced to the main state_machine node, which then gets published as Image topics.
+Our robot has 3 main ROS nodes, competition, state machine, and controller GUI nodes. Connecting those nodes are the topics, and we made 5 new topics for debugging purposes."/processed_img" and "/tape_img" are used for driving, and "/board_mask_img", "/flattened_plate_img", and "/letters_img" are used for clue detection.  All of these images are processed inside each state and are internally referenced to the main state_machine node, which then gets published as Image topics.
 
 Our CNN is integrated in clue detect state instead of running independently. This is done so we can transition to clue detect state once the robot faces to the clue board, avoiding unexpected PID control behavior from sudden clue detection.
 
@@ -84,7 +84,7 @@ Our CNN is integrated in clue detect state instead of running independently. Thi
 Finite State Machine (FSM) was implemented for our robot to manage driving in various surface conditions, detecting obstacles and clue boards. The FSM consists of 16 states, and below is the diagram illustrating the transitions between these states based on sensor inputs.
 #figure(
   // The image function goes here (no '#' needed inside figure)
-  image("images/FSM.pdf", width: 110%),
+  image("images/FSM.pdf", width:80%),
   // Add a caption using a content block ([...])
   caption: [Finite State Machine Diagram],
   // Add a label for referencing (use a name enclosed in angle brackets)
@@ -129,7 +129,7 @@ We realized that the ground to sky ratio in the frame was always constant on a f
 With high enough binarized threshold, we can filter out most of the small contour in dirt road section and other similar surface condition, but we could not eliminate all of them, so we tried filtering out by contour area. 
 
 #figure(
-  image("images/find_contour.png",width: 70%),
+  image("images/find_contour.png",width: 50%),
   caption: [Contours in dirt road section after filtering by area]
 )
 
@@ -153,7 +153,7 @@ Through multiple layers of filtering, we finally got valid contours like in the 
 === General PID Algorithm
 We generally use contour's area moment, calculate lane center coordinate, and find the error between center coordinate and the center of the frame. However, unlike in the typical line-following, we drive in the middle of the two white lines, so the proportional control require center lane adjustment algorithm for a smooth drive. 
 #figure(
-  image("images/drive_2lane.jpg", width: 70%),
+  image("images/drive_2lane.jpg", width: 50%),
   caption: [2 lanes drive with traditional P-control]
 )
 In this case, we find the area moment of two lines and average the Cx value to get the lane center which is shown as light blue point. We calculate the error from the frame center which is shown as red line, and control the yaw. This works for straight roads with two lines, but fails at a steep curve where there is only one line.
@@ -230,7 +230,7 @@ For details on navigating the mountain which ended up being unused, see @mountai
 
 === Pedestrian & Truck
 #figure(
-    image("images/pedestrian_detection.png",width: 70%),
+    image("images/pedestrian_detection.png",width: 50%),
     caption: [Pedestrian detection using cv2.absdiff()]
 )
 Our strategy for pedestrian and truck detection was to stop the robot when entering the state, use _cv2.absdiff()_ to find the difference in two consecutive frames, and start driving if there were no difference for 2 consecutive times.
@@ -238,14 +238,14 @@ Our strategy for pedestrian and truck detection was to stop the robot when enter
 The detection method is the same for both states, but transition to each detecting state is different. \
 For the pedestrian detection, we detect the red tape using a red mask, enter "Pedestrian" state, stop the robot, and detect for moving object. We cropped the top part of the frame so that the truck at the back wouldn't be considered as a moving pedestrian.
 #figure(
-    image("images/pre_truck_detection.png",width: 70%),
+    image("images/pre_truck_detection.png",width: 50%),
     caption: [Flat and wide bounding rectangle at the top of the frame]
 )
 For the truck state, we made a "Pre_Truck" state which transitions to the "Truck" state when there is a wide and flat bounding rectangle at the top as it is shown in the top right side of the image. At the exit of this state, the robot will turn slightly to the right so the camera can capture the truck better.
 
 === Clue Detection transition Algorithm
 #figure(
-    image("images/homing_board.png",width: 50%),
+    image("images/homing_board.png",width: 30%),
     caption: [Homing at the board]
 )
 Our clue detection CNN runs inside the "Clue_Detect" state only when the robot is facing the board and is close enough. By doing so, we can avoid unexpected behavior, and maximize the chance of predicting right clue.
