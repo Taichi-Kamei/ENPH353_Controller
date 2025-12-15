@@ -35,8 +35,30 @@
 == Introduction
 
 === Competition Requirements and Goals
+In this project, we designed a fully autonomous "Fizz Detective" robot that can navigate a racecourse in a simulated ROS Gazebo environment while identifying clues to a crime on boards located around the track. There were two main challenges in this competition:
+- Drive around the track without violating any traffic rules
+- Detect the prescence of clue boards and read the clues
+
+Points were awarded for succesfully identifying the clues to solve the crime. However, points were deducted for traffic rule violations like driving off the road or hitting other vehicles and pedestrians. There were four minutes of simulation time to try and achieve the maximum 57 points with ties being broken by time.
+
+Our goal for the competition was to make it possible for our robot to achieve maximum points. Specifically, this meant we wanted to be able to drive through the entire course without using respawning our robot as that would incur point deductions and restrict our maximum point potential. 
+#figure(
+  // The image function goes here (no '#' needed inside figure)
+  image("images/ros_map.png", width: 100%),
+  // Add a caption using a content block ([...])
+  caption: [Map of ROS Gazebo Competition Enviroment],
+  // Add a label for referencing (use a name enclosed in angle brackets)
+)
+#figure(
+  // The image function goes here (no '#' needed inside figure)
+  image("images/clue_board_example_small.png", width: 100%),
+  // Add a caption using a content block ([...])
+  caption: [Simulated Camera Feed of Clue Board],
+  // Add a label for referencing (use a name enclosed in angle brackets)
+)
 
 === Contribution Split
+We brainstormed the overall strategy we would follow together. We decided on using PID navigation as it would be simpler to implement than an imitation learning or reinforcement learning system. Taichi developed the robot's PID navigation algorithm and state machine. For detection of clue boards and optical character recognition, we decided to use a simpler system based on masking the specific blue colour of the board and a small convolutional neural network as opposed to using a YOLO based system. Bowen developed the clue board detection and the convolutional neural network for optical character recognition.
 
 === ROS Architecture
 Shown below is the structure of our ROS nodes and topics. The ROS nodes are in the black box, and the topics are highlighted in grey. Bold arrows indicate the ROS node interactions through topics, while dashed arrows represents local access relationships.
@@ -280,6 +302,15 @@ Our clue detection CNN runs inside the "Clue_Detect" state only when the robot i
 In each driving state, we have a blue board contour detection function which returns true above certain area threshold. When that becomes true, the robot transitions to the "Clue_Detect" state. We use PID and face to the board, run the CNN, and move the robot closer to the board until the CNN function returns a valid letters. Once the letters are detected, the robot sends it to the score tracker, face away from the clue board, and transitions to the next state depending on the clue type. We implemented downtime after the clue detection because the robot sometimes catch the board again and gets stuck in "Clue Detect" state.\
 
 == Clue Detection
+=== Extracting Plates
+Once we have a clue board in the raw camera feed, we first `create_blue_mask` out of the raw image using `cv2.inRange` (we found the HSV range of [80, 125, 0] to [160, 255, 255] to work the best). We then `extract_board` by taking the largest contour and perspective transform it to make a flat projection of the clue board. We repeat this process again except masking for white/gray pixels in order to `extract_plate`.
+#figure(
+  image("images/image_processing.png", width: 80%),
+  caption: [Plate Extraction Image Processing Pipeline]
+)
+
+=== Reading Clues
+
 
 == Conclusion
 
@@ -301,3 +332,5 @@ As a team who did the PID control with the original robot, we think it is very h
 === Future Improvements
 Use imitation learning
 == Appendix
+=== Appendix A
+=== Appendix B
